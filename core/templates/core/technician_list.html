@@ -1,0 +1,73 @@
+{% extends 'core/base.html' %}
+{% block title %}Techniciens — OCP{% endblock %}
+{% block content %}
+<div class="animate-fade-in">
+    <div class="page-header">
+        <div>
+            <h1 class="text-2xl md:text-3xl font-bold text-slate-900">Techniciens</h1>
+            <p class="text-slate-500 text-sm mt-1">Gérez les techniciens et leurs compétences</p>
+        </div>
+        {% if can_manage %}
+        <a href="{% url 'technician_create' %}" class="btn btn-primary"><i class="ph ph-plus"></i> <span class="hidden sm:inline">Nouveau</span></a>
+        {% endif %}
+    </div>
+
+    <div class="card mb-6 p-4">
+        <form method="get" class="flex gap-3">
+            <div class="relative flex-1">
+                <i class="ph ph-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                <input type="text" name="q" value="{{ q }}" placeholder="Rechercher un technicien..." class="form-input pl-10">
+            </div>
+            <button type="submit" class="btn btn-secondary"><i class="ph ph-magnifying-glass"></i></button>
+            {% if q %}<a href="{% url 'technician_list' %}" class="btn btn-secondary"><i class="ph ph-x"></i></a>{% endif %}
+        </form>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {% for t in technicians %}
+        <div class="card card-hover">
+            <div class="flex items-start justify-between mb-3">
+                <div class="flex items-center gap-3">
+                    <div class="w-12 h-12 bg-gradient-to-br from-ocp-400 to-ocp-600 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-sm">
+                        {{ t.prenom|first }}{{ t.nom|first }}
+                    </div>
+                    <div>
+                        <div class="font-bold text-slate-900">{{ t.prenom }} {{ t.nom }}</div>
+                        <div class="text-xs text-slate-500">{{ t.email|default:"" }}</div>
+                    </div>
+                </div>
+                <span class="badge {% if t.disponible %}status-terminee{% else %}status-en_attente{% endif %} text-[10px]">{{ t.disponible|yesno:"Dispo,Indispo" }}</span>
+            </div>
+            <div class="space-y-2 text-sm mb-4">
+                <div class="flex items-center gap-2 text-slate-600"><i class="ph ph-wrench text-slate-400 text-xs"></i> {{ t.specialites|default:"—"|truncatechars:35 }}</div>
+                <div class="flex items-center gap-2 text-slate-600"><i class="ph ph-phone text-slate-400 text-xs"></i> {{ t.telephone|default:"—" }}</div>
+                <div class="flex items-center justify-between">
+                    <span class="text-slate-500 text-xs">Interventions: <strong class="text-slate-700">{{ t.intervention_count }}</strong></span>
+                    <span class="text-slate-500 text-xs">Note: <strong class="text-slate-700">{{ t.note_moyenne|default:"—" }}</strong>/5</span>
+                </div>
+            </div>
+            <div class="flex gap-2 pt-3 border-t border-slate-100">
+                <a href="{% url 'technician_detail' t.pk %}" class="btn btn-secondary btn-sm flex-1 justify-center"><i class="ph ph-eye"></i> Détails</a>
+                {% if can_manage %}
+                <a href="{% url 'technician_edit' t.pk %}" class="btn-icon text-slate-500 hover:bg-slate-100" title="Modifier"><i class="ph ph-pencil-simple"></i></a>
+                <a href="{% url 'technician_delete' t.pk %}" class="btn-icon text-red-500 hover:bg-red-50" title="Supprimer"><i class="ph ph-trash"></i></a>
+                {% endif %}
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-span-full empty-state py-12">
+            <div class="empty-state-icon"><i class="ph ph-hard-hat text-slate-300 text-2xl"></i></div>
+            <p class="text-sm text-slate-400">Aucun technicien trouvé</p>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% if technicians.has_other_pages %}
+    <div class="flex justify-center gap-2 mt-6">
+        {% if technicians.has_previous %}<a href="?page={{ technicians.previous_page_number }}&q={{ q }}" class="btn btn-secondary btn-sm"><i class="ph ph-caret-left"></i></a>{% endif %}
+        <span class="px-4 py-2 text-sm text-slate-600 bg-white rounded-lg border border-slate-200 font-medium">{{ technicians.number }} / {{ technicians.paginator.num_pages }}</span>
+        {% if technicians.has_next %}<a href="?page={{ technicians.next_page_number }}&q={{ q }}" class="btn btn-secondary btn-sm"><i class="ph ph-caret-right"></i></a>{% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

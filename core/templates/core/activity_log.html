@@ -1,0 +1,33 @@
+{% extends 'core/base.html' %}
+{% block title %}Journal d'activité — OCP{% endblock %}
+{% block content %}
+<div class="mb-6">
+    <h1 class="text-2xl font-bold text-gray-900">Journal d'activité</h1>
+    <p class="text-gray-500 mt-1">Dernières actions effectuées sur la plateforme</p>
+</div>
+
+<div class="card overflow-x-auto">
+    <table class="w-full text-sm">
+        <thead class="bg-gray-50 text-gray-600">
+            <tr>
+                <th class="px-4 py-3 text-left font-medium rounded-l-lg">Date</th>
+                <th class="px-4 py-3 text-left font-medium">Utilisateur</th>
+                <th class="px-4 py-3 text-left font-medium">Action</th>
+                <th class="px-4 py-3 text-left font-medium rounded-r-lg">Détail</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100">
+            {% for log in logs %}
+            <tr class="hover:bg-gray-50 transition">
+                <td class="px-4 py-3 text-gray-600 whitespace-nowrap">{{ log.date|date:"d/m/Y H:i:s" }}</td>
+                <td class="px-4 py-3 text-gray-900 font-medium">{{ log.utilisateur.username|default:"Système" }}</td>
+                <td class="px-4 py-3 text-gray-800">{{ log.action }}</td>
+                <td class="px-4 py-3 text-gray-600">{{ log.detail|default:"—"|truncatechars:60 }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="4" class="px-4 py-8 text-center text-gray-400">Aucune activité enregistrée</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

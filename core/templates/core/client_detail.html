@@ -1,0 +1,57 @@
+{% extends 'core/base.html' %}
+{% block title %}{{ client.nom }} — OCP{% endblock %}
+{% block content %}
+<div class="mb-6">
+    <a href="{% url 'client_list' %}" class="text-ocp-600 text-sm hover:underline">← Retour aux clients</a>
+    <h1 class="text-2xl font-bold text-gray-900 mt-2">{{ client.nom }}</h1>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div class="card">
+        <h2 class="text-lg font-semibold mb-4">Informations</h2>
+        <div class="space-y-3 text-sm">
+            <div class="flex justify-between border-b border-gray-100 pb-2">
+                <span class="text-gray-500">Email</span>
+                <span class="text-gray-900">{{ client.email|default:"—" }}</span>
+            </div>
+            <div class="flex justify-between border-b border-gray-100 pb-2">
+                <span class="text-gray-500">Téléphone</span>
+                <span class="text-gray-900">{{ client.telephone|default:"—" }}</span>
+            </div>
+            <div class="flex justify-between border-b border-gray-100 pb-2">
+                <span class="text-gray-500">Adresse</span>
+                <span class="text-gray-900">{{ client.adresse|default:"—" }}</span>
+            </div>
+            <div class="flex justify-between border-b border-gray-100 pb-2">
+                <span class="text-gray-500">Secteur</span>
+                <span class="text-gray-900">{{ client.secteur|default:"—" }}</span>
+            </div>
+            <div class="flex justify-between">
+                <span class="text-gray-500">Créé le</span>
+                <span class="text-gray-900">{{ client.created_at|date:"d/m/Y" }}</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="lg:col-span-2 card">
+        <h2 class="text-lg font-semibold mb-4">Historique des interventions</h2>
+        {% for i in interventions %}
+        <div class="py-3 border-b border-gray-100 last:border-0">
+            <a href="{% url 'intervention_detail' i.pk %}" class="font-medium text-gray-900 hover:text-ocp-600">#{{ i.id }} — {{ i.titre }}</a>
+            <div class="flex items-center gap-3 mt-1 text-sm text-gray-500">
+                <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium
+                    {% if i.statut == 'terminee' %}bg-emerald-100 text-emerald-700
+                    {% elif i.statut == 'en_cours' %}bg-amber-100 text-amber-700
+                    {% else %}bg-gray-100 text-gray-700{% endif %}">
+                    {{ i.get_statut_display }}
+                </span>
+                <span>{{ i.get_type_intervention_display }}</span>
+                <span>{{ i.date_creation|date:"d/m/Y" }}</span>
+            </div>
+        </div>
+        {% empty %}
+        <p class="text-gray-400">Aucune intervention</p>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

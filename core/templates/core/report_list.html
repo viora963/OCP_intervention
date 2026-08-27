@@ -1,0 +1,56 @@
+{% extends 'core/base.html' %}
+{% block title %}Rapports — OCP{% endblock %}
+{% block content %}
+<div class="flex items-center justify-between mb-6">
+    <h1 class="text-2xl font-bold text-gray-900">Rapports d'intervention</h1>
+</div>
+
+<div class="card overflow-x-auto">
+    <table class="w-full text-sm">
+        <thead class="bg-gray-50 text-gray-600">
+            <tr>
+                <th class="px-4 py-3 text-left font-medium rounded-l-lg">Intervention</th>
+                <th class="px-4 py-3 text-left font-medium">Client</th>
+                <th class="px-4 py-3 text-left font-medium">Technicien</th>
+                <th class="px-4 py-3 text-left font-medium">Satisfaction</th>
+                <th class="px-4 py-3 text-left font-medium">Date</th>
+                <th class="px-4 py-3 text-right font-medium rounded-r-lg">Actions</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100">
+            {% for r in reports %}
+            <tr class="hover:bg-gray-50 transition">
+                <td class="px-4 py-3 font-medium text-gray-900">
+                    <a href="{% url 'report_detail' r.pk %}" class="hover:text-ocp-600">#{{ r.intervention.id }} — {{ r.intervention.titre|truncatechars:30 }}</a>
+                </td>
+                <td class="px-4 py-3 text-gray-600">{{ r.intervention.client.nom }}</td>
+                <td class="px-4 py-3 text-gray-600">{{ r.intervention.technicien|default:"—" }}</td>
+                <td class="px-4 py-3">
+                    {% if r.satisfaction_client %}
+                    <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium
+                        {% if r.satisfaction_client >= 4 %}bg-emerald-100 text-emerald-700
+                        {% elif r.satisfaction_client >= 3 %}bg-amber-100 text-amber-700
+                        {% else %}bg-red-100 text-red-700{% endif %}">{{ r.satisfaction_client }}/5</span>
+                    {% else %}—{% endif %}
+                </td>
+                <td class="px-4 py-3 text-gray-600">{{ r.created_at|date:"d/m/Y" }}</td>
+                <td class="px-4 py-3 text-right">
+                    <a href="{% url 'report_detail' r.pk %}" class="text-ocp-600 hover:underline text-sm">Détails</a>
+                    <a href="{% url 'report_pdf' r.pk %}" class="text-gray-500 hover:text-gray-700 text-sm ml-2">PDF</a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="6" class="px-4 py-8 text-center text-gray-400">Aucun rapport</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% if reports.has_other_pages %}
+<div class="flex justify-center gap-2 mt-6">
+    {% if reports.has_previous %}<a href="?page={{ reports.previous_page_number }}" class="btn-secondary text-sm">← Précédent</a>{% endif %}
+    <span class="px-3 py-2 text-sm text-gray-600">Page {{ reports.number }} / {{ reports.paginator.num_pages }}</span>
+    {% if reports.has_next %}<a href="?page={{ reports.next_page_number }}" class="btn-secondary text-sm">Suivant →</a>{% endif %}
+</div>
+{% endif %}
+{% endblock %}

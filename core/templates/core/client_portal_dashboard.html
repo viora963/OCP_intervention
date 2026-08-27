@@ -1,0 +1,96 @@
+{% extends 'core/base.html' %}
+{% block title %}Mes interventions — OCP{% endblock %}
+{% block content %}
+<div class="animate-fade-in">
+    <div class="page-header">
+        <div>
+            <h1 class="text-2xl md:text-3xl font-bold text-slate-900">Mes interventions</h1>
+            <p class="text-slate-500 text-sm mt-1 flex items-center gap-2">
+                <i class="ph ph-buildings"></i>
+                {{ client.nom }}
+            </p>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+        <div class="card card-hover border-l-4 border-ocp-500 p-5">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-xs font-semibold text-slate-500 uppercase">Total</span>
+                <div class="w-8 h-8 bg-ocp-50 rounded-lg flex items-center justify-center">
+                    <i class="ph ph-list-checks text-ocp-600"></i>
+                </div>
+            </div>
+            <div class="text-2xl md:text-3xl font-bold text-slate-900">{{ total_interventions }}</div>
+        </div>
+        <div class="card card-hover border-l-4 border-amber-500 p-5">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-xs font-semibold text-slate-500 uppercase">En cours</span>
+                <div class="w-8 h-8 bg-amber-50 rounded-lg flex items-center justify-center">
+                    <i class="ph ph-clock text-amber-600"></i>
+                </div>
+            </div>
+            <div class="text-2xl md:text-3xl font-bold text-slate-900">{{ interventions_actives.count }}</div>
+        </div>
+        <div class="card card-hover border-l-4 border-emerald-500 p-5">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-xs font-semibold text-slate-500 uppercase">Terminées</span>
+                <div class="w-8 h-8 bg-emerald-50 rounded-lg flex items-center justify-center">
+                    <i class="ph ph-check-circle text-emerald-600"></i>
+                </div>
+            </div>
+            <div class="text-2xl md:text-3xl font-bold text-slate-900">{{ interventions_terminees.count }}</div>
+        </div>
+    </div>
+
+    <div class="card mb-6">
+        <div class="flex items-center gap-2 mb-5">
+            <i class="ph ph-wrench text-ocp-600"></i>
+            <h2 class="text-lg font-bold text-slate-900">En cours / à venir</h2>
+        </div>
+        {% for i in interventions_actives %}
+        <a href="{% url 'client_portal_intervention_detail' i.pk %}" class="flex items-center gap-3 p-3 rounded-lg hover:bg-slate-50 transition group mb-2">
+            <div class="w-10 h-10 rounded-lg flex items-center justify-center shrink-0
+                {% if i.statut == 'en_cours' %}bg-amber-50 text-amber-600{% elif i.statut == 'planifiee' %}bg-blue-50 text-blue-600{% else %}bg-slate-100 text-slate-500{% endif %}">
+                <i class="ph {% if i.statut == 'en_cours' %}ph-clock{% elif i.statut == 'planifiee' %}ph-calendar{% else %}ph-hourglass{% endif %}"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+                <div class="font-medium text-slate-900 text-sm truncate group-hover:text-ocp-700 transition">{{ i.titre }}</div>
+                <div class="text-xs text-slate-500">{{ i.get_type_intervention_display }} · {{ i.date_planification|date:"d/m/Y H:i"|default:"Date à confirmer" }}</div>
+            </div>
+            <span class="badge status-{{ i.statut }} text-[10px]">{{ i.get_statut_display }}</span>
+        </a>
+        {% empty %}
+        <div class="empty-state py-8">
+            <div class="empty-state-icon w-12 h-12"><i class="ph ph-coffee text-slate-300 text-xl"></i></div>
+            <p class="text-sm text-slate-400">Aucune intervention en cours ou à venir</p>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="card">
+        <div class="flex items-center gap-2 mb-5">
+            <i class="ph ph-check-circle text-ocp-600"></i>
+            <h2 class="text-lg font-bold text-slate-900">Historique récent</h2>
+        </div>
+        {% for i in interventions_terminees %}
+        <a href="{% url 'client_portal_intervention_detail' i.pk %}" class="flex items-center gap-3 p-3 rounded-lg hover:bg-slate-50 transition group mb-2">
+            <div class="w-10 h-10 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+                <i class="ph ph-check"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+                <div class="font-medium text-slate-900 text-sm truncate group-hover:text-ocp-700 transition">{{ i.titre }}</div>
+                <div class="text-xs text-slate-500">{{ i.date_fin|date:"d/m/Y"|default:i.date_creation|date:"d/m/Y" }}</div>
+            </div>
+            {% if i.report %}
+            <span class="badge text-[10px] bg-ocp-50 text-ocp-700 border border-ocp-100">Rapport disponible</span>
+            {% endif %}
+        </a>
+        {% empty %}
+        <div class="empty-state py-8">
+            <div class="empty-state-icon w-12 h-12"><i class="ph ph-archive text-slate-300 text-xl"></i></div>
+            <p class="text-sm text-slate-400">Aucune intervention terminée pour le moment</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

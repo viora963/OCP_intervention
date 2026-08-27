@@ -1,0 +1,55 @@
+{% extends 'core/base.html' %}
+{% block title %}Rapport #{{ report.intervention.id }} — OCP{% endblock %}
+{% block content %}
+<div class="mb-6">
+    <a href="{% url 'report_list' %}" class="text-ocp-600 text-sm hover:underline">← Retour aux rapports</a>
+    <div class="flex items-center justify-between mt-2">
+        <h1 class="text-2xl font-bold text-gray-900">Rapport — {{ report.intervention.titre }}</h1>
+        <div class="flex gap-2">
+            <a href="{% url 'report_pdf' report.pk %}" class="btn-secondary text-sm">📄 PDF</a>
+            {% if perms.core.change_report %}
+            <a href="{% url 'report_edit' report.pk %}" class="btn-secondary text-sm">Modifier</a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div class="lg:col-span-2 space-y-6">
+        <div class="card">
+            <h2 class="text-lg font-semibold mb-4">Contenu</h2>
+            <p class="text-gray-800 whitespace-pre-line">{{ report.contenu|default:"Aucun contenu" }}</p>
+        </div>
+        <div class="card">
+            <h2 class="text-lg font-semibold mb-4">Observations</h2>
+            <p class="text-gray-800 whitespace-pre-line">{{ report.observations|default:"Aucune observation" }}</p>
+        </div>
+        <div class="card">
+            <h2 class="text-lg font-semibold mb-4">Recommandations</h2>
+            <p class="text-gray-800 whitespace-pre-line">{{ report.recommandations|default:"Aucune recommandation" }}</p>
+        </div>
+        <div class="card">
+            <h2 class="text-lg font-semibold mb-4">Résumé automatique</h2>
+            <div class="bg-gray-50 rounded-lg p-4 text-sm text-gray-700 whitespace-pre-line">{{ report.ai_summary }}</div>
+        </div>
+        {% if report.ai_anomalies != "Aucune anomalie détectée." %}
+        <div class="card border-red-200">
+            <h2 class="text-lg font-semibold mb-4 text-red-700">Anomalies détectées</h2>
+            <div class="bg-red-50 rounded-lg p-4 text-sm text-red-700 whitespace-pre-line">{{ report.ai_anomalies }}</div>
+        </div>
+        {% endif %}
+    </div>
+    <div class="space-y-6">
+        <div class="card">
+            <h2 class="text-lg font-semibold mb-4">Informations</h2>
+            <div class="space-y-3 text-sm">
+                <div class="flex justify-between border-b border-gray-100 pb-2"><span class="text-gray-500">Intervention</span><a href="{% url 'intervention_detail' report.intervention.pk %}" class="text-ocp-600 hover:underline">#{{ report.intervention.id }}</a></div>
+                <div class="flex justify-between border-b border-gray-100 pb-2"><span class="text-gray-500">Client</span><span class="text-gray-900">{{ report.intervention.client.nom }}</span></div>
+                <div class="flex justify-between border-b border-gray-100 pb-2"><span class="text-gray-500">Technicien</span><span class="text-gray-900">{{ report.intervention.technicien|default:"—" }}</span></div>
+                <div class="flex justify-between border-b border-gray-100 pb-2"><span class="text-gray-500">Satisfaction</span><span class="font-medium">{{ report.satisfaction_client|default:"—" }}/5</span></div>
+                <div class="flex justify-between"><span class="text-gray-500">Créé le</span><span class="text-gray-900">{{ report.created_at|date:"d/m/Y H:i" }}</span></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

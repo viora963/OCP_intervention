@@ -1,0 +1,155 @@
+{% extends 'core/base.html' %}
+{% block title %}Connexion — OCP{% endblock %}
+{% block content %}
+<div class="min-h-screen flex bg-white" x-data="{
+    showPassword: false,
+    fill(u, p) {
+        document.getElementById('id_username').value = u;
+        document.getElementById('id_password').value = p;
+    }
+}">
+    <!-- Left brand panel (desktop only) -->
+    <div class="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-gradient-to-br from-ocp-950 via-ocp-900 to-emerald-950">
+        <div class="absolute inset-0 opacity-10" style="background-image: radial-gradient(circle at 2px 2px, white 1px, transparent 0); background-size: 32px 32px;"></div>
+        <div class="absolute top-10 -left-10 w-96 h-96 bg-ocp-500/20 rounded-full blur-3xl animate-float"></div>
+        <div class="absolute bottom-10 right-0 w-80 h-80 bg-emerald-400/10 rounded-full blur-3xl animate-float-slow"></div>
+
+        <div class="relative z-10 flex flex-col justify-between p-12 xl:p-16 w-full">
+            <div class="flex items-center gap-2.5">
+                <div class="w-10 h-10 bg-white/10 backdrop-blur rounded-lg flex items-center justify-center border border-white/10">
+                    <i class="ph ph-gear-six text-white text-lg"></i>
+                </div>
+                <span class="text-white font-bold tracking-wide text-sm">OCP KHOURIBGA</span>
+            </div>
+
+            <div class="max-w-md">
+                <h1 class="text-4xl xl:text-[2.6rem] font-bold text-white leading-tight mb-5">
+                    Gestion des<br>Interventions
+                </h1>
+                <p class="text-ocp-200/80 text-base leading-relaxed mb-10">
+                    Planifiez, suivez et optimisez les interventions du service informatique
+                    du site de Khouribga, en temps réel.
+                </p>
+
+                <div class="space-y-4">
+                    <div class="flex items-start gap-3">
+                        <div class="w-9 h-9 shrink-0 rounded-lg bg-white/10 border border-white/10 flex items-center justify-center">
+                            <i class="ph ph-calendar-check text-ocp-300 text-base"></i>
+                        </div>
+                        <div>
+                            <p class="text-white text-sm font-medium">Planification intelligente</p>
+                            <p class="text-ocp-300/70 text-xs mt-0.5">Recommandation de technicien par scoring pondéré</p>
+                        </div>
+                    </div>
+                    <div class="flex items-start gap-3">
+                        <div class="w-9 h-9 shrink-0 rounded-lg bg-white/10 border border-white/10 flex items-center justify-center">
+                            <i class="ph ph-map-pin-line text-ocp-300 text-base"></i>
+                        </div>
+                        <div>
+                            <p class="text-white text-sm font-medium">Suivi en temps réel</p>
+                            <p class="text-ocp-300/70 text-xs mt-0.5">Statuts, retards et incidents visibles instantanément</p>
+                        </div>
+                    </div>
+                    <div class="flex items-start gap-3">
+                        <div class="w-9 h-9 shrink-0 rounded-lg bg-white/10 border border-white/10 flex items-center justify-center">
+                            <i class="ph ph-file-text text-ocp-300 text-base"></i>
+                        </div>
+                        <div>
+                            <p class="text-white text-sm font-medium">Rapports détaillés</p>
+                            <p class="text-ocp-300/70 text-xs mt-0.5">Générés automatiquement, export PDF en un clic</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <p class="text-ocp-300/40 text-xs">© {% now "Y" %} OCP Khouribga — Service Informatique</p>
+        </div>
+    </div>
+
+    <!-- Right form panel -->
+    <div class="w-full lg:w-1/2 flex items-center justify-center p-6 sm:p-10 relative">
+        <div class="absolute inset-0 lg:hidden bg-gradient-to-br from-ocp-950 via-ocp-900 to-emerald-950 -z-10">
+            <div class="absolute inset-0 opacity-10" style="background-image: radial-gradient(circle at 2px 2px, white 1px, transparent 0); background-size: 32px 32px;"></div>
+        </div>
+
+        <div class="w-full max-w-sm animate-fade-in">
+            <!-- Mobile-only header card -->
+            <div class="lg:hidden bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl shadow-black/20 p-6 mb-4 text-center border border-white/10">
+                <div class="w-14 h-14 bg-gradient-to-br from-ocp-400 to-ocp-600 rounded-xl flex items-center justify-center mx-auto mb-3 shadow-lg shadow-ocp-500/30">
+                    <i class="ph ph-gear-six text-white text-2xl"></i>
+                </div>
+                <h1 class="text-lg font-bold text-gray-900">Gestion des Interventions</h1>
+                <p class="text-gray-500 text-xs mt-0.5">Site de Khouribga — Service Informatique</p>
+            </div>
+
+            <div class="bg-white lg:bg-white rounded-2xl lg:rounded-none lg:shadow-none shadow-2xl shadow-black/20 p-6 sm:p-0">
+                <div class="hidden lg:block mb-8">
+                    <h2 class="text-2xl font-bold text-gray-900">Bon retour 👋</h2>
+                    <p class="text-gray-500 text-sm mt-1.5">Connectez-vous pour accéder à votre espace.</p>
+                </div>
+
+                <form method="post" class="space-y-5">
+                    {% csrf_token %}
+                    {% if form.non_field_errors %}
+                    <div class="rounded-xl border border-red-200 bg-red-50 p-3 flex items-start gap-2.5">
+                        <i class="ph ph-warning-circle text-red-500 text-lg shrink-0 mt-0.5"></i>
+                        <div class="text-sm text-red-700">
+                            {% for error in form.non_field_errors %}
+                            <p>{{ error }}</p>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ form.username.label }}</label>
+                        <div class="relative">
+                            <i class="ph ph-user absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-lg"></i>
+                            {{ form.username }}
+                        </div>
+                    </div>
+                    <div>
+                        <div class="flex items-center justify-between mb-1.5">
+                            <label class="block text-sm font-medium text-gray-700">{{ form.password.label }}</label>
+                        </div>
+                        <div class="relative">
+                            <i class="ph ph-lock-key absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-lg"></i>
+                            {{ form.password }}
+                            <button type="button" @click="
+                                    showPassword = !showPassword;
+                                    document.getElementById('id_password').type = showPassword ? 'text' : 'password';
+                                "
+                                class="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition">
+                                <i class="text-lg" :class="showPassword ? 'ph ph-eye-slash' : 'ph ph-eye'"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn-primary w-full py-3 text-base shadow-lg shadow-ocp-500/25">
+                        <i class="ph ph-sign-in text-lg"></i>
+                        Se connecter
+                    </button>
+                </form>
+
+                <div class="mt-8 pt-6 border-t border-gray-100">
+                    <p class="text-xs text-gray-400 text-center mb-3">Comptes de démonstration — cliquez pour préremplir</p>
+                    <div class="grid grid-cols-2 gap-3">
+                        <button type="button" @click="fill('admin', 'admin123')"
+                            class="group bg-gray-50 hover:bg-ocp-50 border border-transparent hover:border-ocp-200 rounded-xl p-3 text-center transition">
+                            <div class="text-xs font-semibold text-gray-700 group-hover:text-ocp-800">admin</div>
+                            <div class="text-xs text-gray-400">admin123</div>
+                            <div class="text-[10px] text-ocp-600 font-medium mt-1 uppercase tracking-wider">Agent Bureau</div>
+                        </button>
+                        <button type="button" @click="fill('tech1', 'tech123')"
+                            class="group bg-gray-50 hover:bg-blue-50 border border-transparent hover:border-blue-200 rounded-xl p-3 text-center transition">
+                            <div class="text-xs font-semibold text-gray-700 group-hover:text-blue-800">tech1</div>
+                            <div class="text-xs text-gray-400">tech123</div>
+                            <div class="text-[10px] text-blue-600 font-medium mt-1 uppercase tracking-wider">Technicien</div>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <p class="text-center text-xs text-ocp-300/60 lg:text-gray-400 mt-6">OCP Khouribga — Service Informatique</p>
+        </div>
+    </div>
+</div>
+{% endblock %}

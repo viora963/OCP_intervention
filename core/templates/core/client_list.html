@@ -1,0 +1,79 @@
+{% extends 'core/base.html' %}
+{% block title %}Clients — OCP{% endblock %}
+{% block content %}
+<div class="animate-fade-in">
+    <div class="page-header">
+        <div>
+            <h1 class="text-2xl md:text-3xl font-bold text-slate-900">Clients</h1>
+            <p class="text-slate-500 text-sm mt-1">Gérez les clients et leurs interventions</p>
+        </div>
+        {% if can_manage %}
+        <a href="{% url 'client_create' %}" class="btn btn-primary">
+            <i class="ph ph-plus"></i> <span class="hidden sm:inline">Nouveau client</span>
+        </a>
+        {% endif %}
+    </div>
+
+    <div class="card mb-6 p-4">
+        <form method="get" class="flex gap-3">
+            <div class="relative flex-1">
+                <i class="ph ph-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                <input type="text" name="q" value="{{ q }}" placeholder="Rechercher un client..." class="form-input pl-10">
+            </div>
+            <button type="submit" class="btn btn-secondary"><i class="ph ph-magnifying-glass"></i></button>
+            {% if q %}<a href="{% url 'client_list' %}" class="btn btn-secondary"><i class="ph ph-x"></i></a>{% endif %}
+        </form>
+    </div>
+
+    <div class="card overflow-hidden">
+        <div class="hidden md:block overflow-x-auto">
+            <table class="data-table">
+                <thead><tr><th>Client</th><th>Email</th><th>Téléphone</th><th>Secteur</th><th>Interventions</th><th class="text-right">Actions</th></tr></thead>
+                <tbody>
+                    {% for c in clients %}
+                    <tr>
+                        <td data-label="Client">
+                            <a href="{% url 'client_detail' c.pk %}" class="font-semibold text-slate-900 hover:text-ocp-700 transition">{{ c.nom }}</a>
+                        </td>
+                        <td data-label="Email"><span class="text-slate-600 text-sm">{{ c.email|default:"—" }}</span></td>
+                        <td data-label="Téléphone"><span class="text-slate-600 text-sm">{{ c.telephone|default:"—" }}</span></td>
+                        <td data-label="Secteur"><span class="text-slate-600 text-sm">{{ c.secteur|default:"—" }}</span></td>
+                        <td data-label="Interventions"><span class="font-semibold text-slate-700">{{ c.intervention_count }}</span></td>
+                        <td data-label="Actions" class="text-right">
+                            <div class="flex items-center justify-end gap-1">
+                                <a href="{% url 'client_detail' c.pk %}" class="btn-icon text-ocp-600 hover:bg-ocp-50" title="Détails"><i class="ph ph-eye"></i></a>
+                                {% if can_manage %}
+                                <a href="{% url 'client_edit' c.pk %}" class="btn-icon text-slate-500 hover:bg-slate-100" title="Modifier"><i class="ph ph-pencil-simple"></i></a>
+                                <a href="{% url 'client_delete' c.pk %}" class="btn-icon text-red-500 hover:bg-red-50" title="Supprimer"><i class="ph ph-trash"></i></a>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="6"><div class="empty-state"><div class="empty-state-icon"><i class="ph ph-users text-slate-300 text-2xl"></i></div><p class="text-sm">Aucun client trouvé</p></div></td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="md:hidden space-y-3 p-4">
+            {% for c in clients %}
+            <a href="{% url 'client_detail' c.pk %}" class="block card card-hover p-4">
+                <div class="font-semibold text-slate-900">{{ c.nom }}</div>
+                <div class="text-xs text-slate-500 mt-1">{{ c.email|default:"" }} • {{ c.intervention_count }} intervention{{ c.intervention_count|pluralize }}</div>
+            </a>
+            {% empty %}
+            <div class="empty-state"><div class="empty-state-icon"><i class="ph ph-users text-slate-300 text-2xl"></i></div><p class="text-sm">Aucun client trouvé</p></div>
+            {% endfor %}
+        </div>
+    </div>
+
+    {% if clients.has_other_pages %}
+    <div class="flex justify-center gap-2 mt-6">
+        {% if clients.has_previous %}<a href="?page={{ clients.previous_page_number }}&q={{ q }}" class="btn btn-secondary btn-sm"><i class="ph ph-caret-left"></i></a>{% endif %}
+        <span class="px-4 py-2 text-sm text-slate-600 bg-white rounded-lg border border-slate-200 font-medium">{{ clients.number }} / {{ clients.paginator.num_pages }}</span>
+        {% if clients.has_next %}<a href="?page={{ clients.next_page_number }}&q={{ q }}" class="btn btn-secondary btn-sm"><i class="ph ph-caret-right"></i></a>{% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

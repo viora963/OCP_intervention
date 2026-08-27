@@ -1,0 +1,166 @@
+{% extends 'core/base.html' %}
+{% block breadcrumbs %}
+<span class="text-gray-300">/</span>
+<a href="{% url 'dashboard' %}" class="hover:text-ocp-600 transition">Interventions</a>
+{% endblock %}
+{% block title %}Interventions — OCP{% endblock %}
+{% block content %}
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+    <div>
+        <h1 class="text-2xl font-bold text-gray-900">Interventions</h1>
+        <p class="text-gray-500 text-sm mt-0.5">{{ interventions.paginator.count }} intervention{{ interventions.paginator.count|pluralize:"s" }} au total</p>
+    </div>
+    <div class="flex gap-2">
+        {% if can_create %}
+        <a href="{% url 'intervention_create' %}" class="btn-primary self-start sm:self-auto">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+            Nouvelle intervention
+        </a>
+        {% endif %}
+        {% if perms.core.export_interventions %}
+        <a href="{% url 'export_interventions' %}" class="btn-secondary self-start sm:self-auto">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1M7 10l5 5 5-5M12 15V3"/></svg>
+            Exporter CSV
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="card p-4 mb-6" x-data="{ expanded: false }">
+    <form method="get" class="space-y-3">
+        <div class="flex flex-col sm:flex-row gap-3">
+            <div class="relative flex-1">
+                <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                <input type="text" name="q" value="{{ q }}" placeholder="Rechercher par titre, client, description..." class="form-input pl-9">
+            </div>
+            <button type="button" @click="expanded = !expanded" class="btn-secondary sm:w-auto">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/></svg>
+                Filtres
+            </button>
+            <button type="submit" class="btn-primary">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                Filtrer
+            </button>
+            {% if q or statut or priorite or type_i %}
+            <a href="{% url 'intervention_list' %}" class="btn-danger">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                Réinitialiser
+            </a>
+            {% endif %}
+        </div>
+        <div x-show="expanded" x-transition class="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+            <select name="statut" class="form-select">
+                <option value="">Tous les statuts</option>
+                {% for val, label in STATUT_CHOICES %}
+                <option value="{{ val }}" {% if statut == val %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+            <select name="priorite" class="form-select">
+                <option value="">Toutes les priorités</option>
+                {% for val, label in PRIORITE_CHOICES %}
+                <option value="{{ val }}" {% if priorite == val %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+            <select name="type" class="form-select">
+                <option value="">Tous les types</option>
+                {% for val, label in TYPE_CHOICES %}
+                <option value="{{ val }}" {% if type_i == val %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </form>
+</div>
+
+<!-- Active filters chips -->
+{% if statut or priorite or type_i or q %}
+<div class="flex flex-wrap gap-2 mb-4">
+    {% if q %}<span class="inline-flex items-center gap-1 px-2.5 py-1 bg-ocp-50 text-ocp-700 rounded-full text-xs font-medium">Recherche: {{ q }} <a href="?{% if statut %}statut={{ statut }}&{% endif %}{% if priorite %}priorite={{ priorite }}&{% endif %}{% if type_i %}type={{ type_i }}{% endif %}" class="hover:text-ocp-900">×</a></span>{% endif %}
+    {% if statut %}<span class="inline-flex items-center gap-1 px-2.5 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-medium">Statut: {{ statut }} <a href="?{% if q %}q={{ q }}&{% endif %}{% if priorite %}priorite={{ priorite }}&{% endif %}{% if type_i %}type={{ type_i }}{% endif %}" class="hover:text-blue-900">×</a></span>{% endif %}
+    {% if priorite %}<span class="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-50 text-amber-700 rounded-full text-xs font-medium">Priorité: {{ priorite }} <a href="?{% if q %}q={{ q }}&{% endif %}{% if statut %}statut={{ statut }}&{% endif %}{% if type_i %}type={{ type_i }}{% endif %}" class="hover:text-amber-900">×</a></span>{% endif %}
+    {% if type_i %}<span class="inline-flex items-center gap-1 px-2.5 py-1 bg-purple-50 text-purple-700 rounded-full text-xs font-medium">Type: {{ type_i }} <a href="?{% if q %}q={{ q }}&{% endif %}{% if statut %}statut={{ statut }}&{% endif %}{% if priorite %}priorite={{ priorite }}{% endif %}" class="hover:text-purple-900">×</a></span>{% endif %}
+</div>
+{% endif %}
+
+<!-- Desktop Table / Mobile Cards -->
+<div class="card overflow-hidden p-0">
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm mobile-table">
+            <thead class="bg-gray-50/80">
+                <tr>
+                    <th class="text-left py-3.5 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">ID</th>
+                    <th class="text-left py-3.5 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Titre</th>
+                    <th class="text-left py-3.5 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider hidden lg:table-cell">Client</th>
+                    <th class="text-left py-3.5 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider hidden md:table-cell">Tech.</th>
+                    <th class="text-left py-3.5 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Type</th>
+                    <th class="text-left py-3.5 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Priorité</th>
+                    <th class="text-left py-3.5 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Statut</th>
+                    <th class="text-right py-3.5 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-50">
+                {% for i in interventions %}
+                <tr class="hover:bg-gray-50/50 transition group {% if i.est_en_retard %}bg-red-50/30{% endif %}">
+                    <td class="py-3.5 px-4" data-label="ID">
+                        <span class="text-gray-400 font-mono text-xs">#{{ i.id }}</span>
+                        {% if i.est_en_retard %}<span class="text-red-500 text-xs ml-1" title="En retard">⚠</span>{% endif %}
+                    </td>
+                    <td class="py-3.5 px-4" data-label="Titre">
+                        <a href="{% url 'intervention_detail' i.pk %}" class="font-medium text-gray-900 group-hover:text-ocp-600 transition line-clamp-1">{{ i.titre|truncatechars:35 }}</a>
+                        <div class="text-xs text-gray-400 mt-0.5 lg:hidden">{{ i.client.nom }}</div>
+                    </td>
+                    <td class="py-3.5 px-4 hidden lg:table-cell" data-label="Client">{{ i.client.nom|truncatechars:20 }}</td>
+                    <td class="py-3.5 px-4 hidden md:table-cell" data-label="Technicien">{{ i.technicien|default:"—" }}</td>
+                    <td class="py-3.5 px-4" data-label="Type">
+                        <span class="text-xs text-gray-600">{{ i.get_type_intervention_display }}</span>
+                    </td>
+                    <td class="py-3.5 px-4" data-label="Priorité">
+                        <span class="badge {% if i.priorite == 'critique' %}bg-red-100 text-red-700{% elif i.priorite == 'haute' %}bg-orange-100 text-orange-700{% elif i.priorite == 'moyenne' %}bg-blue-100 text-blue-700{% else %}bg-gray-100 text-gray-600{% endif %}">
+                            {{ i.get_priorite_display }}
+                        </span>
+                    </td>
+                    <td class="py-3.5 px-4" data-label="Statut">
+                        <span class="badge {% if i.statut == 'terminee' %}bg-emerald-100 text-emerald-700{% elif i.statut == 'en_cours' %}bg-amber-100 text-amber-700{% elif i.statut == 'planifiee' %}bg-blue-100 text-blue-700{% else %}bg-gray-100 text-gray-600{% endif %}">
+                            {% if i.statut == 'en_cours' %}<span class="w-1.5 h-1.5 rounded-full bg-amber-500 mr-1.5 pulse-live"></span>{% endif %}
+                            {{ i.get_statut_display }}
+                        </span>
+                    </td>
+                    <td class="py-3.5 px-4 text-right" data-label="Actions">
+                        <div class="flex items-center justify-end gap-2">
+                            <a href="{% url 'intervention_detail' i.pk %}" class="btn-ghost p-1.5" title="Détails">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                            </a>
+                            <a href="{% url 'intervention_edit' i.pk %}" class="btn-ghost p-1.5" title="Modifier">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="8" class="py-16 text-center">
+                        <svg class="w-14 h-14 mx-auto mb-3 text-gray-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
+                        <p class="text-gray-400 font-medium">Aucune intervention trouvée</p>
+                        <p class="text-gray-400 text-xs mt-1">Essayez de modifier vos filtres</p>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if interventions.has_other_pages %}
+    <div class="border-t border-gray-100 px-4 py-3 flex items-center justify-between">
+        <p class="text-xs text-gray-500">Page {{ interventions.number }} sur {{ interventions.paginator.num_pages }}</p>
+        <div class="flex gap-1.5">
+            {% if interventions.has_previous %}
+            <a href="?page={{ interventions.previous_page_number }}&q={{ q }}&statut={{ statut }}&priorite={{ priorite }}&type={{ type_i }}" class="btn-secondary px-3 py-1.5 text-xs">← Précédent</a>
+            {% endif %}
+            {% if interventions.has_next %}
+            <a href="?page={{ interventions.next_page_number }}&q={{ q }}&statut={{ statut }}&priorite={{ priorite }}&type={{ type_i }}" class="btn-secondary px-3 py-1.5 text-xs">Suivant →</a>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

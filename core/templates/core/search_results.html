@@ -1,0 +1,56 @@
+{% extends 'core/base.html' %}
+{% block title %}Résultats de recherche — OCP{% endblock %}
+{% block content %}
+<div class="mb-6">
+    <h1 class="text-2xl font-bold text-gray-900">Résultats de recherche</h1>
+    <p class="text-gray-500 mt-1">Recherche : <strong>"{{ q }}"</strong></p>
+</div>
+
+{% if too_short %}
+<div class="card text-center py-12">
+    <p class="text-gray-500">Veuillez entrer au moins 2 caractères pour la recherche.</p>
+</div>
+{% else %}
+<div class="space-y-8">
+    <div class="card">
+        <h2 class="text-lg font-semibold mb-4">Clients ({{ clients|length }})</h2>
+        {% for c in clients %}
+        <div class="py-2 border-b border-gray-50 last:border-0">
+            <a href="{% url 'client_detail' c.pk %}" class="font-medium text-gray-900 hover:text-ocp-600">{{ c.nom }}</a>
+            <span class="text-sm text-gray-500 ml-2">{{ c.email|default:"" }}</span>
+        </div>
+        {% empty %}<p class="text-gray-400 text-sm">Aucun résultat</p>{% endfor %}
+    </div>
+
+    <div class="card">
+        <h2 class="text-lg font-semibold mb-4">Techniciens ({{ technicians|length }})</h2>
+        {% for t in technicians %}
+        <div class="py-2 border-b border-gray-50 last:border-0">
+            <a href="{% url 'technician_detail' t.pk %}" class="font-medium text-gray-900 hover:text-ocp-600">{{ t.prenom }} {{ t.nom }}</a>
+            <span class="text-sm text-gray-500 ml-2">{{ t.specialites|default:""|truncatechars:40 }}</span>
+        </div>
+        {% empty %}<p class="text-gray-400 text-sm">Aucun résultat</p>{% endfor %}
+    </div>
+
+    <div class="card">
+        <h2 class="text-lg font-semibold mb-4">Interventions ({{ interventions|length }})</h2>
+        {% for i in interventions %}
+        <div class="py-2 border-b border-gray-50 last:border-0">
+            <a href="{% url 'intervention_detail' i.pk %}" class="font-medium text-gray-900 hover:text-ocp-600">#{{ i.id }} — {{ i.titre }}</a>
+            <span class="text-sm text-gray-500 ml-2">{{ i.client.nom }} — {{ i.get_statut_display }}</span>
+        </div>
+        {% empty %}<p class="text-gray-400 text-sm">Aucun résultat</p>{% endfor %}
+    </div>
+
+    <div class="card">
+        <h2 class="text-lg font-semibold mb-4">Pièces détachées ({{ pieces|length }})</h2>
+        {% for p in pieces %}
+        <div class="py-2 border-b border-gray-50 last:border-0">
+            <span class="font-medium text-gray-900">{{ p.nom }}</span>
+            <span class="text-sm text-gray-500 ml-2">{{ p.reference }} — Stock: {{ p.quantite_stock }}</span>
+        </div>
+        {% empty %}<p class="text-gray-400 text-sm">Aucun résultat</p>{% endfor %}
+    </div>
+</div>
+{% endif %}
+{% endblock %}

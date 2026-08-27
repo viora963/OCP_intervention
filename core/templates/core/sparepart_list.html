@@ -1,0 +1,78 @@
+{% extends 'core/base.html' %}
+{% block title %}Stock — OCP{% endblock %}
+{% block content %}
+<div class="flex items-center justify-between mb-6">
+    <h1 class="text-2xl font-bold text-gray-900">Pièces détachées</h1>
+    <div class="flex gap-2">
+        {% if can_manage %}
+        <a href="{% url 'sparepart_create' %}" class="btn-primary">+ Nouvelle pièce</a>
+        <a href="{% url 'stock_movement_create' %}" class="btn-secondary">Mouvement stock</a>
+        {% endif %}
+        <a href="{% url 'stock_movement_list' %}" class="btn-secondary">Historique</a>
+        {% if perms.core.export_stock %}
+        <a href="{% url 'export_stock' %}" class="btn-secondary">📄 CSV</a>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card mb-6">
+    <form method="get" class="flex gap-3">
+        <input type="text" name="q" value="{{ q }}" placeholder="Rechercher une pièce..." class="form-input flex-1">
+        <label class="flex items-center gap-2 text-sm">
+            <input type="checkbox" name="alertes" value="1" {% if alertes %}checked{% endif %} class="form-checkbox">
+            Alertes uniquement
+        </label>
+        <button type="submit" class="btn-secondary">Filtrer</button>
+        {% if q or alertes %}<a href="{% url 'sparepart_list' %}" class="btn-secondary">Réinitialiser</a>{% endif %}
+    </form>
+</div>
+
+<div class="card overflow-x-auto">
+    <table class="w-full text-sm">
+        <thead class="bg-gray-50 text-gray-600">
+            <tr>
+                <th class="px-4 py-3 text-left font-medium rounded-l-lg">Référence</th>
+                <th class="px-4 py-3 text-left font-medium">Nom</th>
+                <th class="px-4 py-3 text-left font-medium">Stock</th>
+                <th class="px-4 py-3 text-left font-medium">Min.</th>
+                <th class="px-4 py-3 text-left font-medium">Prix</th>
+                <th class="px-4 py-3 text-left font-medium">Fournisseur</th>
+                <th class="px-4 py-3 text-left font-medium">Emplacement</th>
+                <th class="px-4 py-3 text-right font-medium rounded-r-lg">Actions</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100">
+            {% for p in parts %}
+            <tr class="hover:bg-gray-50 transition {% if p.est_sous_seuil %}bg-red-50{% endif %}">
+                <td class="px-4 py-3 font-mono text-gray-600">{{ p.reference }}</td>
+                <td class="px-4 py-3 font-medium text-gray-900">{{ p.nom }}</td>
+                <td class="px-4 py-3">
+                    <span class="font-bold {% if p.est_sous_seuil %}text-red-600{% else %}text-gray-900{% endif %}">{{ p.quantite_stock }}</span>
+                    {% if p.est_sous_seuil %}<span class="text-red-500 text-xs ml-1">⚠</span>{% endif %}
+                </td>
+                <td class="px-4 py-3 text-gray-600">{{ p.quantite_minimale }}</td>
+                <td class="px-4 py-3 text-gray-600">{{ p.prix_unitaire }} DH</td>
+                <td class="px-4 py-3 text-gray-600">{{ p.fournisseur|default:"—" }}</td>
+                <td class="px-4 py-3 text-gray-600">{{ p.emplacement|default:"—" }}</td>
+                <td class="px-4 py-3 text-right">
+                    {% if can_manage %}
+                    <a href="{% url 'sparepart_edit' p.pk %}" class="text-gray-500 hover:text-gray-700 text-sm">Modifier</a>
+                    <a href="{% url 'sparepart_delete' p.pk %}" class="text-red-500 hover:text-red-700 text-sm ml-2">Supprimer</a>
+                    {% endif %}
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="8" class="px-4 py-8 text-center text-gray-400">Aucune pièce</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% if parts.has_other_pages %}
+<div class="flex justify-center gap-2 mt-6">
+    {% if parts.has_previous %}<a href="?page={{ parts.previous_page_number }}&q={{ q }}&alertes={{ alertes }}" class="btn-secondary text-sm">← Précédent</a>{% endif %}
+    <span class="px-3 py-2 text-sm text-gray-600">Page {{ parts.number }} / {{ parts.paginator.num_pages }}</span>
+    {% if parts.has_next %}<a href="?page={{ parts.next_page_number }}&q={{ q }}&alertes={{ alertes }}" class="btn-secondary text-sm">Suivant →</a>{% endif %}
+</div>
+{% endif %}
+{% endblock %}

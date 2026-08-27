@@ -1,0 +1,387 @@
+{% extends 'core/base.html' %}
+{% block breadcrumbs %}
+<span class="text-gray-300">/</span>
+<a href="{% url 'intervention_list' %}" class="hover:text-ocp-600 transition">Interventions</a>
+<span class="text-gray-300">/</span>
+<span class="text-gray-700 font-medium">#{{ intervention.id }}</span>
+{% endblock %}
+{% block title %}Intervention #{{ intervention.id }} — OCP{% endblock %}
+{% block content %}
+<div class="mb-6">
+    <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div>
+            <div class="flex items-center gap-2 mb-1">
+                <span class="text-gray-400 font-mono text-xs">#{{ intervention.id }}</span>
+                <span class="badge {% if intervention.priorite == 'critique' %}bg-red-100 text-red-700{% elif intervention.priorite == 'haute' %}bg-orange-100 text-orange-700{% elif intervention.priorite == 'moyenne' %}bg-blue-100 text-blue-700{% else %}bg-gray-100 text-gray-600{% endif %}">{{ intervention.get_priorite_display }}</span>
+                <span class="badge {% if intervention.statut == 'terminee' %}bg-emerald-100 text-emerald-700{% elif intervention.statut == 'en_cours' %}bg-amber-100 text-amber-700{% elif intervention.statut == 'planifiee' %}bg-blue-100 text-blue-700{% else %}bg-gray-100 text-gray-600{% endif %}">
+                    {% if intervention.statut == 'en_cours' %}<span class="w-1.5 h-1.5 rounded-full bg-amber-500 mr-1 pulse-live"></span>{% endif %}
+                    {{ intervention.get_statut_display }}
+                </span>
+                {% if intervention.est_en_retard %}<span class="badge bg-red-100 text-red-700">⚠ Retard</span>{% endif %}
+            </div>
+            <h1 class="text-2xl font-bold text-gray-900">{{ intervention.titre }}</h1>
+        </div>
+        <div class="flex gap-2">
+            <a href="{% url 'intervention_edit' intervention.pk %}" class="btn-secondary">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                Modifier
+            </a>
+            {% if can_manage %}
+            <a href="{% url 'intervention_delete' intervention.pk %}" class="btn-danger">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                Supprimer
+            </a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <!-- Left column -->
+    <div class="lg:col-span-2 space-y-6">
+        <!-- Info card -->
+        <div class="card">
+            <div class="grid grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-4 text-sm">
+                <div>
+                    <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Client</span>
+                    <p class="font-medium text-gray-900 mt-0.5 flex items-center gap-1.5">
+                        <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+                        <a href="{% url 'client_detail' intervention.client.pk %}" class="hover:text-ocp-600 transition">{{ intervention.client.nom }}</a>
+                    </p>
+                </div>
+                <div>
+                    <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Technicien</span>
+                    <p class="font-medium text-gray-900 mt-0.5 flex items-center gap-1.5">
+                        <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                        {{ intervention.technicien|default:"Non assigné" }}
+                    </p>
+                </div>
+                <div>
+                    <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Type</span>
+                    <p class="font-medium text-gray-900 mt-0.5">{{ intervention.get_type_intervention_display }}</p>
+                </div>
+                <div>
+                    <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Planifiée le</span>
+                    <p class="font-medium text-gray-900 mt-0.5">{{ intervention.date_planification|date:"d/m/Y H:i"|default:"—" }}</p>
+                </div>
+                <div>
+                    <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Durée estimée</span>
+                    <p class="font-medium text-gray-900 mt-0.5">{{ intervention.duree_estimee }} min</p>
+                </div>
+                {% if intervention.duree_reelle %}
+                <div>
+                    <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Durée réelle</span>
+                    <p class="font-medium text-gray-900 mt-0.5">{{ intervention.duree_reelle }} min</p>
+                </div>
+                {% endif %}
+            </div>
+            <div class="mt-5 pt-5 border-t border-gray-100">
+                <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Description</span>
+                <p class="text-gray-700 mt-1.5 text-sm leading-relaxed">{{ intervention.description|linebreaksbr|default:"Aucune description" }}</p>
+            </div>
+            {% if intervention.est_en_retard %}
+            <div class="mt-4 p-3 bg-red-50 border border-red-100 rounded-lg flex items-start gap-2.5">
+                <svg class="w-5 h-5 text-red-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                <p class="text-sm text-red-700">Cette intervention est en retard par rapport à la date de planification.</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Tabs: Tasks / Messages / Pieces / Report -->
+        <div class="card p-0 overflow-hidden" x-data="{ tab: 'tasks' }">
+            <div class="flex border-b border-gray-100 overflow-x-auto">
+                <button @click="tab = 'tasks'" :class="tab === 'tasks' ? 'text-ocp-600 border-b-2 border-ocp-500 bg-ocp-50/50' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'" class="px-5 py-3 text-sm font-medium transition whitespace-nowrap flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+                    Tâches ({{ tasks.count }})
+                </button>
+                <button @click="tab = 'messages'" :class="tab === 'messages' ? 'text-ocp-600 border-b-2 border-ocp-500 bg-ocp-50/50' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'" class="px-5 py-3 text-sm font-medium transition whitespace-nowrap flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+                    Messages ({{ messages_list.count }})
+                </button>
+                <button @click="tab = 'pieces'" :class="tab === 'pieces' ? 'text-ocp-600 border-b-2 border-ocp-500 bg-ocp-50/50' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'" class="px-5 py-3 text-sm font-medium transition whitespace-nowrap flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+                    Pièces ({{ pieces.count }})
+                </button>
+                <button @click="tab = 'incidents'" :class="tab === 'incidents' ? 'text-ocp-600 border-b-2 border-ocp-500 bg-ocp-50/50' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'" class="px-5 py-3 text-sm font-medium transition whitespace-nowrap flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                    Incidents ({{ incidents.count }})
+                </button>
+                <button @click="tab = 'report'" :class="tab === 'report' ? 'text-ocp-600 border-b-2 border-ocp-500 bg-ocp-50/50' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'" class="px-5 py-3 text-sm font-medium transition whitespace-nowrap flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                    Rapport
+                </button>
+            </div>
+
+            <!-- Tasks tab -->
+            <div x-show="tab === 'tasks'" x-transition class="p-5">
+                {% for t in tasks %}
+                <div class="flex items-center justify-between py-3 border-b border-gray-50 last:border-0 group">
+                    <div class="flex items-center gap-3">
+                        <span class="w-2 h-2 rounded-full {% if t.statut == 'terminee' %}bg-emerald-400{% elif t.statut == 'en_cours' %}bg-amber-400{% else %}bg-gray-300{% endif %}"></span>
+                        <div>
+                            <span class="font-medium text-gray-900 text-sm">{{ t.titre }}</span>
+                            {% if t.description %}<p class="text-xs text-gray-500 mt-0.5">{{ t.description|truncatechars:60 }}</p>{% endif %}
+                        </div>
+                    </div>
+                    <span class="badge {% if t.statut == 'terminee' %}bg-emerald-100 text-emerald-700{% elif t.statut == 'en_cours' %}bg-amber-100 text-amber-700{% else %}bg-gray-100 text-gray-600{% endif %} text-xs">{{ t.get_statut_display }}</span>
+                </div>
+                {% empty %}
+                <div class="text-center py-10">
+                    <svg class="w-12 h-12 mx-auto mb-3 text-gray-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+                    <p class="text-gray-400 text-sm">Aucune tâche</p>
+                </div>
+                {% endfor %}
+                <form method="post" action="{% url 'task_create' intervention.pk %}" class="mt-4 flex gap-2">
+                    {% csrf_token %}
+                    <input type="text" name="titre" placeholder="Ajouter une tâche..." class="form-input flex-1 text-sm" required>
+                    <button type="submit" class="btn-primary text-sm px-4">Ajouter</button>
+                </form>
+            </div>
+
+            <!-- Messages tab -->
+            <div x-show="tab === 'messages'" x-transition class="p-5">
+                <div class="space-y-4 max-h-96 overflow-y-auto mb-4 pr-1">
+                    {% for m in messages_list %}
+                    <div class="flex gap-3 {% if m.expediteur == user %}flex-row-reverse{% endif %}">
+                        <div class="w-8 h-8 rounded-full {% if m.expediteur == user %}bg-ocp-100 text-ocp-700{% else %}bg-gray-100 text-gray-600{% endif %} flex items-center justify-center text-xs font-bold shrink-0">{{ m.expediteur.username|first|upper }}</div>
+                        <div class="{% if m.expediteur == user %}bg-ocp-50 border-ocp-100{% else %}bg-gray-50 border-gray-100{% endif %} rounded-xl px-4 py-2.5 border max-w-[80%]">
+                            <div class="flex items-center justify-between gap-4 mb-1">
+                                <span class="text-xs font-semibold {% if m.expediteur == user %}text-ocp-700{% else %}text-gray-600{% endif %}">{{ m.expediteur.username }}</span>
+                                <span class="text-[10px] text-gray-400">{{ m.date_envoi|date:"d/m H:i" }}</span>
+                            </div>
+                            <p class="text-sm text-gray-800">{{ m.contenu }}</p>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="text-center py-10">
+                        <svg class="w-12 h-12 mx-auto mb-3 text-gray-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+                        <p class="text-gray-400 text-sm">Aucun message</p>
+                    </div>
+                    {% endfor %}
+                </div>
+                <form method="post" action="{% url 'message_create' intervention.pk %}" class="flex gap-2">
+                    {% csrf_token %}
+                    <textarea name="contenu" placeholder="Votre message..." rows="2" class="form-textarea flex-1 text-sm resize-none" required></textarea>
+                    <button type="submit" class="btn-primary text-sm px-4 self-end">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+                    </button>
+                </form>
+            </div>
+
+            <!-- Pieces tab -->
+            <div x-show="tab === 'pieces'" x-transition class="p-5">
+                {% for p in pieces %}
+                <div class="flex items-center justify-between py-3 border-b border-gray-50 last:border-0">
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center">
+                            <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+                        </div>
+                        <div>
+                            <span class="text-sm font-medium text-gray-900">{{ p.piece.nom }}</span>
+                            <span class="text-xs text-gray-400">({{ p.piece.reference }})</span>
+                        </div>
+                    </div>
+                    <span class="font-bold text-gray-900 text-sm">×{{ p.quantite }}</span>
+                </div>
+                {% empty %}
+                <div class="text-center py-10">
+                    <svg class="w-12 h-12 mx-auto mb-3 text-gray-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+                    <p class="text-gray-400 text-sm">Aucune pièce utilisée</p>
+                </div>
+                {% endfor %}
+                <form method="post" action="{% url 'intervention_add_piece' intervention.pk %}" class="mt-4 flex gap-2">
+                    {% csrf_token %}
+                    <select name="piece" class="form-select flex-1 text-sm" required>
+                        <option value="">Choisir une pièce...</option>
+                        {% for p in piece_form.fields.piece.queryset %}
+                        <option value="{{ p.pk }}">{{ p.nom }} ({{ p.reference }}) — Stock: {{ p.quantite_stock }}</option>
+                        {% endfor %}
+                    </select>
+                    <input type="number" name="quantite" value="1" min="1" class="form-input w-20 text-sm" required>
+                    <button type="submit" class="btn-primary text-sm px-4">Ajouter</button>
+                </form>
+            </div>
+
+            <!-- Incidents tab -->
+            <div x-show="tab === 'incidents'" x-transition class="p-5">
+                {% for inc in incidents %}
+                <div class="flex items-start justify-between gap-3 py-3 border-b border-gray-50 last:border-0">
+                    <div class="flex items-start gap-3 min-w-0">
+                        <span class="mt-1 w-2 h-2 rounded-full shrink-0 {% if inc.resolu %}bg-emerald-400{% elif inc.gravite == 'critique' %}bg-red-500{% elif inc.gravite == 'majeure' %}bg-orange-500{% elif inc.gravite == 'moderee' %}bg-amber-400{% else %}bg-gray-300{% endif %}"></span>
+                        <div class="min-w-0">
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <span class="font-medium text-gray-900 text-sm">{{ inc.titre }}</span>
+                                <span class="badge text-[10px] {% if inc.gravite == 'critique' %}bg-red-100 text-red-700{% elif inc.gravite == 'majeure' %}bg-orange-100 text-orange-700{% elif inc.gravite == 'moderee' %}bg-amber-100 text-amber-700{% else %}bg-gray-100 text-gray-600{% endif %}">{{ inc.get_gravite_display }}</span>
+                                {% if inc.resolu %}<span class="badge text-[10px] bg-emerald-100 text-emerald-700">Résolu</span>{% endif %}
+                            </div>
+                            {% if inc.description %}<p class="text-xs text-gray-500 mt-0.5">{{ inc.description|truncatechars:100 }}</p>{% endif %}
+                            <p class="text-[11px] text-gray-400 mt-1">{{ inc.signale_par.username|default:"—" }} · {{ inc.date_signalement|date:"d/m/Y H:i" }}</p>
+                        </div>
+                    </div>
+                    <form method="post" action="{% url 'incident_resolve' inc.pk %}" class="shrink-0">
+                        {% csrf_token %}
+                        <button type="submit" class="btn-ghost text-xs whitespace-nowrap">{% if inc.resolu %}Rouvrir{% else %}Marquer résolu{% endif %}</button>
+                    </form>
+                </div>
+                {% empty %}
+                <div class="text-center py-10">
+                    <svg class="w-12 h-12 mx-auto mb-3 text-gray-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                    <p class="text-gray-400 text-sm">Aucun incident signalé</p>
+                </div>
+                {% endfor %}
+                <form method="post" action="{% url 'incident_create' intervention.pk %}" class="mt-4 space-y-2">
+                    {% csrf_token %}
+                    <div class="flex gap-2">
+                        <input type="text" name="titre" placeholder="Titre de l'incident..." class="form-input flex-1 text-sm" required>
+                        <select name="gravite" class="form-select text-sm w-40">
+                            {% for val, label in incident_form.fields.gravite.choices %}
+                            <option value="{{ val }}">{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="flex gap-2">
+                        <textarea name="description" placeholder="Description (optionnel)..." rows="2" class="form-textarea flex-1 text-sm resize-none"></textarea>
+                        <button type="submit" class="btn-danger text-sm px-4 self-start">Signaler</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Report tab -->
+            <div x-show="tab === 'report'" x-transition class="p-5">
+                {% if intervention.report %}
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="font-bold text-gray-900">Rapport d'intervention</h3>
+                    <div class="flex gap-2">
+                        <a href="{% url 'report_pdf' intervention.report.pk %}" class="btn-secondary text-xs">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+                            PDF
+                        </a>
+                        <a href="{% url 'report_edit' intervention.report.pk %}" class="btn-secondary text-xs">Modifier</a>
+                    </div>
+                </div>
+                <div class="space-y-4 text-sm">
+                    <div class="p-4 bg-gray-50 rounded-lg">
+                        <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Contenu</p>
+                        <p class="text-gray-800 whitespace-pre-line">{{ intervention.report.contenu|default:"—" }}</p>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="p-4 bg-gray-50 rounded-lg">
+                            <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Observations</p>
+                            <p class="text-gray-800 whitespace-pre-line">{{ intervention.report.observations|default:"—" }}</p>
+                        </div>
+                        <div class="p-4 bg-gray-50 rounded-lg">
+                            <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Recommandations</p>
+                            <p class="text-gray-800 whitespace-pre-line">{{ intervention.report.recommandations|default:"—" }}</p>
+                        </div>
+                    </div>
+                    {% if intervention.report.satisfaction_client %}
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Satisfaction client</span>
+                        <div class="flex gap-0.5">
+                            {% for star in "12345" %}
+                            <svg class="w-5 h-5 {% if forloop.counter <= intervention.report.satisfaction_client %}text-amber-400{% else %}text-gray-200{% endif %}" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                    <div class="p-4 bg-ocp-50 rounded-lg border border-ocp-100">
+                        <p class="text-xs font-semibold text-ocp-600 uppercase tracking-wider mb-1">Résumé automatique</p>
+                        <p class="text-sm text-gray-700 whitespace-pre-line">{{ intervention.report.ai_summary }}</p>
+                    </div>
+                    {% if intervention.report.ai_anomalies != "Aucune anomalie détectée." %}
+                    <div class="p-4 bg-red-50 rounded-lg border border-red-100">
+                        <p class="text-xs font-semibold text-red-500 uppercase tracking-wider mb-1">Anomalies détectées</p>
+                        <p class="text-sm text-red-700 whitespace-pre-line">{{ intervention.report.ai_anomalies }}</p>
+                    </div>
+                    {% endif %}
+                </div>
+                {% else %}
+                <div class="text-center py-12">
+                    <svg class="w-14 h-14 mx-auto mb-4 text-gray-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                    <p class="text-gray-400 mb-4">Aucun rapport rédigé pour cette intervention.</p>
+                    <a href="{% url 'report_create' intervention.pk %}" class="btn-primary">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                        Rédiger le rapport
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Right column -->
+    <div class="space-y-6">
+        <!-- Assignation technicien -->
+        {% if can_assign %}
+        <div class="card bg-gradient-to-br from-ocp-50 to-emerald-50/50 border-ocp-100">
+            <h2 class="text-sm font-bold text-ocp-900 mb-3 flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                {% if intervention.technicien %}Technicien assigné{% else %}Assigner un technicien{% endif %}
+            </h2>
+
+            {% if intervention.technicien %}
+            <p class="text-xs text-gray-500 mb-3">
+                Actuellement : <span class="font-medium text-gray-800">{{ intervention.technicien.prenom }} {{ intervention.technicien.nom }}</span>
+            </p>
+            {% endif %}
+
+            {% if recommandations %}
+            <p class="text-xs text-ocp-600 mb-2">Recommandations (moteur de scoring pondéré) — assignation en un clic :</p>
+            {% for tech, score in recommandations %}
+            <form method="post" action="{% url 'intervention_assign_technician' intervention.pk %}" class="flex items-center justify-between py-2 border-b border-ocp-100/50 last:border-0 last:mb-3">
+                {% csrf_token %}
+                <input type="hidden" name="technicien" value="{{ tech.id }}">
+                <div class="min-w-0">
+                    <span class="font-medium text-gray-900 text-sm">{{ tech.prenom }} {{ tech.nom }}</span>
+                    <p class="text-xs text-gray-500 truncate">{{ tech.specialites|truncatechars:25 }}</p>
+                </div>
+                <div class="shrink-0 ml-3 flex items-center gap-2">
+                    <span class="text-sm font-bold text-ocp-700">{{ score }}<span class="text-xs text-ocp-400">/100</span></span>
+                    <button type="submit" class="btn btn-secondary text-xs py-1 px-2"
+                        {% if intervention.technicien_id == tech.id %}disabled{% endif %}>
+                        {% if intervention.technicien_id == tech.id %}Assigné{% else %}Assigner{% endif %}
+                    </button>
+                </div>
+            </form>
+            {% endfor %}
+            {% endif %}
+
+            <details class="mt-3" {% if not intervention.technicien %}open{% endif %}>
+                <summary class="text-xs font-medium text-ocp-700 cursor-pointer select-none">Choisir un autre technicien</summary>
+                <form method="post" action="{% url 'intervention_assign_technician' intervention.pk %}" class="mt-2 flex items-center gap-2">
+                    {% csrf_token %}
+                    {{ assign_form.technicien }}
+                    <button type="submit" class="btn btn-primary text-xs py-1.5 px-3 shrink-0">
+                        <i class="ph ph-check"></i> Assigner
+                    </button>
+                </form>
+            </details>
+        </div>
+        {% endif %}
+
+        <!-- Analysis -->
+        <div class="card">
+            <h2 class="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2">
+                <svg class="w-4 h-4 text-ocp-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
+                Analyse description
+            </h2>
+            <div class="space-y-3 text-sm">
+                <div class="flex justify-between items-center p-2.5 bg-gray-50 rounded-lg">
+                    <span class="text-gray-500 text-xs font-medium uppercase">Priorité suggérée</span>
+                    <span class="badge {% if analyse.priorite_suggeree == 'critique' %}bg-red-100 text-red-700{% elif analyse.priorite_suggeree == 'haute' %}bg-orange-100 text-orange-700{% elif analyse.priorite_suggeree == 'moyenne' %}bg-blue-100 text-blue-700{% else %}bg-gray-100 text-gray-600{% endif %}">{{ analyse.priorite_suggeree|capfirst }}</span>
+                </div>
+                {% if analyse.equipements %}
+                <div class="p-2.5 bg-gray-50 rounded-lg">
+                    <span class="text-gray-500 text-xs font-medium uppercase block mb-1.5">Équipements détectés</span>
+                    <div class="flex flex-wrap gap-1.5">
+                        {% for eq in analyse.equipements %}
+                        <span class="px-2 py-0.5 bg-ocp-100 text-ocp-700 rounded text-xs font-medium">{{ eq }}</span>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

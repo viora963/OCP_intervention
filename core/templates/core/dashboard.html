@@ -1,0 +1,205 @@
+{% extends 'core/base.html' %}
+{% block breadcrumbs %}
+<span class="text-gray-300">/</span>
+<span class="text-gray-700 font-medium">Tableau de bord</span>
+{% endblock %}
+{% block title %}Tableau de bord — OCP{% endblock %}
+{% block content %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+<div class="mb-8">
+    <h1 class="text-2xl font-bold text-gray-900">Tableau de bord</h1>
+    <p class="text-gray-500 text-sm mt-1">Vue d'ensemble opérationnelle en temps réel</p>
+</div>
+
+<!-- KPI Cards -->
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+    <div class="card-hover p-5 border-l-4 border-ocp-500">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Interventions</p>
+                <p class="text-2xl font-bold text-gray-900 mt-1">{{ total_interventions }}</p>
+            </div>
+            <div class="w-10 h-10 rounded-lg bg-ocp-50 flex items-center justify-center">
+                <svg class="w-5 h-5 text-ocp-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+            </div>
+        </div>
+    </div>
+    <div class="card-hover p-5 border-l-4 border-emerald-500">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Terminées</p>
+                <p class="text-2xl font-bold text-gray-900 mt-1">{{ interventions_terminees }}</p>
+            </div>
+            <div class="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center">
+                <svg class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            </div>
+        </div>
+    </div>
+    <div class="card-hover p-5 border-l-4 border-amber-500">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider">En cours</p>
+                <p class="text-2xl font-bold text-gray-900 mt-1">{{ interventions_en_cours }}</p>
+            </div>
+            <div class="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center">
+                <svg class="w-5 h-5 text-amber-600 pulse-live" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            </div>
+        </div>
+    </div>
+    <div class="card-hover p-5 border-l-4 border-red-500">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider">En retard</p>
+                <p class="text-2xl font-bold text-gray-900 mt-1">{{ interventions_retard|length }}</p>
+            </div>
+            <div class="w-10 h-10 rounded-lg bg-red-50 flex items-center justify-center">
+                <svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <!-- Chart -->
+    <div class="lg:col-span-2 card">
+        <div class="flex items-center justify-between mb-5">
+            <h2 class="text-base font-bold text-gray-900 flex items-center gap-2">
+                <svg class="w-5 h-5 text-ocp-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"/></svg>
+                Activité des interventions
+            </h2>
+            <a href="{% url 'intervention_list' %}" class="btn-ghost">Voir tout</a>
+        </div>
+        <div class="h-64">
+            <canvas id="interventionChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Side panels -->
+    <div class="space-y-6">
+        <!-- Stock alerts -->
+        <div class="card">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-base font-bold text-gray-900 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+                    Alertes stock
+                </h2>
+                <a href="{% url 'sparepart_list' %}?alertes=1" class="text-xs text-ocp-600 hover:underline font-medium">Voir tout</a>
+            </div>
+            <div class="space-y-3">
+                {% for p in alertes_stock %}
+                <div class="flex items-center justify-between p-3 bg-red-50/50 rounded-lg border border-red-100">
+                    <div class="min-w-0">
+                        <div class="font-medium text-gray-900 text-sm truncate">{{ p.nom }}</div>
+                        <div class="text-xs text-gray-500">{{ p.reference }}</div>
+                    </div>
+                    <span class="shrink-0 text-red-600 font-bold text-sm">{{ p.quantite_stock }}<span class="text-red-400 font-normal">/{{ p.quantite_minimale }}</span></span>
+                </div>
+                {% empty %}
+                <div class="text-center py-6">
+                    <svg class="w-10 h-10 text-gray-300 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    <p class="text-gray-400 text-sm">Aucune alerte</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Recent activity -->
+        <div class="card">
+            <h2 class="text-base font-bold text-gray-900 mb-4 flex items-center gap-2">
+                <svg class="w-5 h-5 text-ocp-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                Activité récente
+            </h2>
+            <div class="space-y-3">
+                {% for log in dernieres_activites %}
+                <div class="flex gap-3 items-start">
+                    <div class="w-8 h-8 rounded-full bg-ocp-50 flex items-center justify-center shrink-0 mt-0.5">
+                        <span class="text-xs font-bold text-ocp-600">{{ log.utilisateur.username|first|upper|default:"S" }}</span>
+                    </div>
+                    <div class="min-w-0">
+                        <div class="text-sm text-gray-800">{{ log.action }}</div>
+                        <div class="text-xs text-gray-400">{{ log.date|date:"d/m/Y H:i" }}</div>
+                    </div>
+                </div>
+                {% empty %}
+                <p class="text-gray-400 text-sm text-center py-4">Aucune activité</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent interventions table -->
+<div class="mt-6 card">
+    <div class="flex items-center justify-between mb-5">
+        <h2 class="text-base font-bold text-gray-900 flex items-center gap-2">
+            <svg class="w-5 h-5 text-ocp-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
+            Dernières interventions
+        </h2>
+    </div>
+    <div class="overflow-x-auto -mx-6 px-6">
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="border-b border-gray-100">
+                    <th class="text-left py-3 px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">ID</th>
+                    <th class="text-left py-3 px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Titre</th>
+                    <th class="text-left py-3 px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Client</th>
+                    <th class="text-left py-3 px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Statut</th>
+                    <th class="text-left py-3 px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Date</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-50">
+                {% for i in dernieres_interventions %}
+                <tr class="hover:bg-gray-50/50 transition group">
+                    <td class="py-3 px-3 text-gray-400 font-mono text-xs">#{{ i.id }}</td>
+                    <td class="py-3 px-3">
+                        <a href="{% url 'intervention_detail' i.pk %}" class="font-medium text-gray-900 group-hover:text-ocp-600 transition">{{ i.titre|truncatechars:45 }}</a>
+                    </td>
+                    <td class="py-3 px-3 text-gray-600">{{ i.client.nom }}</td>
+                    <td class="py-3 px-3">
+                        <span class="badge {% if i.statut == 'terminee' %}bg-emerald-100 text-emerald-700{% elif i.statut == 'en_cours' %}bg-amber-100 text-amber-700{% elif i.statut == 'planifiee' %}bg-blue-100 text-blue-700{% else %}bg-gray-100 text-gray-600{% endif %}">
+                            {% if i.statut == 'en_cours' %}<span class="w-1.5 h-1.5 rounded-full bg-amber-500 mr-1.5 pulse-live"></span>{% endif %}
+                            {{ i.get_statut_display }}
+                        </span>
+                    </td>
+                    <td class="py-3 px-3 text-gray-400 text-xs">{{ i.date_creation|date:"d/m/Y H:i" }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="5" class="py-12 text-center text-gray-400">
+                    <svg class="w-12 h-12 mx-auto mb-3 text-gray-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                    Aucune intervention
+                </td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+const ctx = document.getElementById('interventionChart');
+if (ctx) {
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: ['En attente', 'Planifiées', 'En cours', 'Terminées', 'Annulées'],
+            datasets: [{
+                label: 'Interventions',
+                data: [{{ interventions_en_attente }}, {{ interventions_planifiees }}, {{ interventions_en_cours }}, {{ interventions_terminees }}, {{ interventions_annulees }}],
+                backgroundColor: ['#9ca3af', '#3b82f6', '#f59e0b', '#10b981', '#ef4444'],
+                borderRadius: 6,
+                borderSkipped: false,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                y: { beginAtZero: true, grid: { color: '#f3f4f6' }, ticks: { font: { size: 11 } } },
+                x: { grid: { display: false }, ticks: { font: { size: 11 } } }
+            }
+        }
+    });
+}
+</script>
+{% endblock %}

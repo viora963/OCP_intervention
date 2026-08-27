@@ -1,0 +1,13 @@
+{% extends 'core/base.html' %}
+{% block title %}Supprimer technicien — OCP{% endblock %}
+{% block content %}
+<div class="max-w-md mx-auto card text-center">
+    <h1 class="text-xl font-bold text-gray-900 mb-2">Confirmer la suppression</h1>
+    <p class="text-gray-600 mb-6">Êtes-vous sûr de vouloir supprimer <strong>{{ technician }}</strong> ?</p>
+    <form method="post" class="flex justify-center gap-3">
+        {% csrf_token %}
+        <button type="submit" class="btn-danger">Supprimer</button>
+        <a href="{% url 'technician_list' %}" class="btn-secondary">Annuler</a>
+    </form>
+</div>
+{% endblock %}

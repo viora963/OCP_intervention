@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Rapport Intervention #{{ report.intervention.id }}</title>
+    <style>
+        body { font-family: Arial, sans-serif; font-size: 12px; color: #333; margin: 40px; }
+        h1 { font-size: 18px; color: #065f46; border-bottom: 2px solid #065f46; padding-bottom: 8px; }
+        h2 { font-size: 14px; color: #065f46; margin-top: 24px; margin-bottom: 8px; }
+        .header { text-align: center; margin-bottom: 30px; }
+        .header img { height: 40px; }
+        .header h1 { border: none; margin: 10px 0 0 0; }
+        .info-box { background: #f9fafb; padding: 12px; border-radius: 6px; margin-bottom: 16px; }
+        .info-table { width: 100%; border-collapse: collapse; }
+        .info-table tr { border-bottom: 1px solid #e5e7eb; }
+        .info-table tr:last-child { border-bottom: none; }
+        .info-table td { padding: 4px 0; }
+        .info-table td.value { text-align: right; }
+        .label { color: #6b7280; }
+        .value { color: #111827; font-weight: 500; }
+        .section { margin-bottom: 20px; }
+        .anomaly { background: #fef2f2; border: 1px solid #fecaca; padding: 12px; border-radius: 6px; color: #991b1b; }
+        .summary { background: #f0fdf4; border: 1px solid #bbf7d0; padding: 12px; border-radius: 6px; }
+        .footer { margin-top: 40px; text-align: center; font-size: 10px; color: #9ca3af; border-top: 1px solid #e5e7eb; padding-top: 12px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>OCP — Gestion des Interventions</h1>
+        <p style="color:#6b7280; margin-top:4px;">Site de Khouribga — Service Informatique</p>
+    </div>
+
+    <h1>Rapport d'intervention #{{ report.intervention.id }}</h1>
+
+    <div class="info-box">
+        <table class="info-table">
+            <tr><td class="label">Titre</td><td class="value">{{ report.intervention.titre }}</td></tr>
+            <tr><td class="label">Client</td><td class="value">{{ report.intervention.client.nom }}</td></tr>
+            <tr><td class="label">Technicien</td><td class="value">{{ report.intervention.technicien|default:"Non assigné" }}</td></tr>
+            <tr><td class="label">Type</td><td class="value">{{ report.intervention.get_type_intervention_display }}</td></tr>
+            <tr><td class="label">Statut</td><td class="value">{{ report.intervention.get_statut_display }}</td></tr>
+            <tr><td class="label">Date de fin</td><td class="value">{{ report.intervention.date_fin|date:"d/m/Y H:i"|default:"—" }}</td></tr>
+            <tr><td class="label">Satisfaction client</td><td class="value">{{ report.satisfaction_client|default:"—" }}/5</td></tr>
+        </table>
+    </div>
+
+    <div class="section">
+        <h2>Contenu du rapport</h2>
+        <p>{{ report.contenu|linebreaksbr|default:"Aucun contenu" }}</p>
+    </div>
+
+    <div class="section">
+        <h2>Observations</h2>
+        <p>{{ report.observations|linebreaksbr|default:"Aucune observation" }}</p>
+    </div>
+
+    <div class="section">
+        <h2>Recommandations</h2>
+        <p>{{ report.recommandations|linebreaksbr|default:"Aucune recommandation" }}</p>
+    </div>
+
+    <div class="section summary">
+        <h2 style="margin-top:0;">Résumé automatique</h2>
+        <p style="white-space:pre-line; margin:0;">{{ report.ai_summary }}</p>
+    </div>
+
+    {% if report.ai_anomalies != "Aucune anomalie détectée." %}
+    <div class="section anomaly">
+        <h2 style="margin-top:0; color:#991b1b;">Anomalies détectées</h2>
+        <p style="white-space:pre-line; margin:0;">{{ report.ai_anomalies }}</p>
+    </div>
+    {% endif %}
+
+    <div class="footer">
+        Document généré le {{ report.updated_at|date:"d/m/Y à H:i" }} — OCP Khouribga
+    </div>
+</body>
+</html>
