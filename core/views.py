@@ -17,7 +17,7 @@ except ImportError:
 
 from .models import (
     Client, Technician, SparePart, Intervention,
-    InterventionPiece, Report,
+    InterventionPiece, Report, Task,
     StockMovement, ActivityLog, Incident
 )
 from .forms import (
@@ -102,7 +102,16 @@ def dashboard_staff(request):
 
     # Alertes stock sous seuil
     alertes_stock = SparePart.objects.filter(quantite_stock__lte=F('quantite_minimale'))[:5]
+    # Alertes stock sous seuil
+    alertes_stock = SparePart.objects.filter(quantite_stock__lte=F('quantite_minimale'))[:5]
 
+    # Incidents non résolus
+    incidents_non_resolus = Incident.objects.filter(resolu=False).select_related('intervention')
+    total_incidents_non_resolus = incidents_non_resolus.count()
+    incidents_critiques = incidents_non_resolus.filter(gravite='critique').count()
+    dernieres_incidents_non_resolus = incidents_non_resolus.order_by('-date_signalement')[:5]
+
+    # Dernières interventions
     # Dernières interventions
     dernieres_interventions = Intervention.objects.select_related('client', 'technicien')[:10]
 
@@ -123,6 +132,9 @@ def dashboard_staff(request):
         'alertes_stock': alertes_stock,
         'dernieres_interventions': dernieres_interventions,
         'dernieres_activites': dernieres_activites,
+                'total_incidents_non_resolus': total_incidents_non_resolus,
+        'incidents_critiques': incidents_critiques,
+        'dernieres_incidents_non_resolus': dernieres_incidents_non_resolus,
     }
     return render(request, 'core/dashboard.html', context)
 
@@ -169,7 +181,7 @@ def client_list(request):
     q = request.GET.get('q', '')
     clients = Client.objects.filter(
         Q(nom__icontains=q) | Q(email__icontains=q) | Q(secteur__icontains=q)
-    ).annotate(intervention_count=Count('interventions'))
+    ).annotate(intervention_count=Count('interventions')).order_by('nom')
 
     paginator = Paginator(clients, 20)
     page = request.GET.get('page')
@@ -240,7 +252,7 @@ def technician_list(request):
     q = request.GET.get('q', '')
     techs = Technician.objects.filter(
         Q(nom__icontains=q) | Q(prenom__icontains=q) | Q(specialites__icontains=q)
-    ).annotate(intervention_count=Count('intervention_set'))
+    ).annotate(intervention_count=Count('intervention_set')).order_by('nom', 'prenom')
 
     paginator = Paginator(techs, 20)
     page = request.GET.get('page')
@@ -553,13 +565,57 @@ def task_create(request, intervention_pk):
     if denied:
         return denied
     if request.method == 'POST':
-        form = TaskForm(request.POST)
+        # Le formulaire d'ajout rapide (onglet Tâches) ne soumet que
+        # `titre` — `statut` a un default='a_faire' sur le modèle, mais
+        # un ModelForm le rend quand même required=True côté validation.
+        # Sans cette valeur par défaut, form.is_valid() échouait
+        # silencieusement (aucune erreur affichée) et la tâche n'était
+        # jamais créée : c'était le bug du bouton "Ajouter".
+        data = request.POST.copy()
+        data.setdefault('statut', 'a_faire')
+        form = TaskForm(data)
         if form.is_valid():
             task = form.save(commit=False)
             task.intervention = intervention
             task.save()
             log_activity(request.user, "Création tâche", f"Intervention #{intervention_pk}")
+        else:
+            django_messages.error(request, "Impossible d'ajouter la tâche : " + " ".join(
+                f"{f}: {', '.join(errs)}" for f, errs in form.errors.items()
+            ))
     return redirect('intervention_detail', pk=intervention_pk)
+
+
+# Ordre de cycle utilisé par le clic rapide sur le badge de statut
+# (onglet Tâches) : à_faire → en_cours → terminée → à_faire ...
+TASK_STATUT_CYCLE = {'a_faire': 'en_cours', 'en_cours': 'terminee', 'terminee': 'a_faire'}
+
+
+@login_required
+def task_update_status(request, pk):
+    """
+    Fait avancer le statut d'une tâche d'un cran (clic sur le badge dans
+    l'onglet Tâches), ou le fixe explicitement si `statut` est fourni
+    dans le POST (utilisé par un éventuel menu déroulant). Même règle
+    d'accès que les autres actions sur l'intervention : seul l'agent
+    bureau (change_intervention) ou le technicien assigné peut modifier.
+    """
+    task = get_object_or_404(Task, pk=pk)
+    denied = _verifier_acces_intervention(request, task.intervention)
+    if denied:
+        return denied
+    if request.method == 'POST':
+        nouveau_statut = request.POST.get('statut')
+        if nouveau_statut and nouveau_statut in dict(Task.STATUT_CHOICES):
+            task.statut = nouveau_statut
+        else:
+            task.statut = TASK_STATUT_CYCLE.get(task.statut, 'a_faire')
+        task.save(update_fields=['statut'])
+        log_activity(
+            request.user, "Modification statut tâche",
+            f"Intervention #{task.intervention_id} — {task.titre} → {task.get_statut_display()}"
+        )
+    return redirect('intervention_detail', pk=task.intervention_id)
 
 @login_required
 def message_create(request, intervention_pk):
@@ -582,6 +638,8 @@ def message_create(request, intervention_pk):
             msg.expediteur = request.user
             msg.save()
             log_activity(request.user, "Message envoyé", f"Intervention #{intervention_pk}")
+        else:
+            django_messages.error(request, "Message vide ou invalide.")
     if is_portal_client(request.user):
         return redirect('client_portal_intervention_detail', pk=intervention_pk)
     return redirect('intervention_detail', pk=intervention_pk)

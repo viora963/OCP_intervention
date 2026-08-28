@@ -104,25 +104,32 @@
             </div>
         </div>
 
-        <!-- Recent activity -->
+        <!-- Incidents non résolus -->
         <div class="card">
-            <h2 class="text-base font-bold text-gray-900 mb-4 flex items-center gap-2">
-                <svg class="w-5 h-5 text-ocp-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                Activité récente
-            </h2>
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-base font-bold text-gray-900 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                    Incidents non résolus
+                    {% if total_incidents_non_resolus %}<span class="badge bg-amber-100 text-amber-700 text-xs">{{ total_incidents_non_resolus }}</span>{% endif %}
+                </h2>
+                {% if incidents_critiques %}
+                <span class="text-xs text-red-600 font-semibold">{{ incidents_critiques }} critique{{ incidents_critiques|pluralize }}</span>
+                {% endif %}
+            </div>
             <div class="space-y-3">
-                {% for log in dernieres_activites %}
-                <div class="flex gap-3 items-start">
-                    <div class="w-8 h-8 rounded-full bg-ocp-50 flex items-center justify-center shrink-0 mt-0.5">
-                        <span class="text-xs font-bold text-ocp-600">{{ log.utilisateur.username|first|upper|default:"S" }}</span>
-                    </div>
+                {% for inc in dernieres_incidents_non_resolus %}
+                <a href="{% url 'intervention_detail' inc.intervention_id %}" class="flex items-center justify-between p-3 {% if inc.gravite == 'critique' %}bg-red-50/50 border-red-100{% else %}bg-amber-50/50 border-amber-100{% endif %} rounded-lg border hover:opacity-80 transition">
                     <div class="min-w-0">
-                        <div class="text-sm text-gray-800">{{ log.action }}</div>
-                        <div class="text-xs text-gray-400">{{ log.date|date:"d/m/Y H:i" }}</div>
+                        <div class="font-medium text-gray-900 text-sm truncate">{{ inc.titre }}</div>
+                        <div class="text-xs text-gray-500 truncate">{{ inc.intervention.titre }}</div>
                     </div>
-                </div>
+                    <span class="shrink-0 {% if inc.gravite == 'critique' %}text-red-600{% else %}text-amber-600{% endif %} font-bold text-xs uppercase">{{ inc.get_gravite_display }}</span>
+                </a>
                 {% empty %}
-                <p class="text-gray-400 text-sm text-center py-4">Aucune activité</p>
+                <div class="text-center py-6">
+                    <svg class="w-10 h-10 text-gray-300 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    <p class="text-gray-400 text-sm">Aucun incident en cours</p>
+                </div>
                 {% endfor %}
             </div>
         </div>
@@ -172,6 +179,28 @@
                 {% endfor %}
             </tbody>
         </table>
+    </div>
+</div>
+<!-- Recent activity -->
+<div class="mt-6 card">
+    <h2 class="text-base font-bold text-gray-900 mb-4 flex items-center gap-2">
+        <svg class="w-5 h-5 text-ocp-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        Activité récente
+    </h2>
+    <div class="space-y-3">
+        {% for log in dernieres_activites %}
+        <div class="flex gap-3 items-start">
+            <div class="w-8 h-8 rounded-full bg-ocp-50 flex items-center justify-center shrink-0 mt-0.5">
+                <span class="text-xs font-bold text-ocp-600">{{ log.utilisateur.username|first|upper|default:"S" }}</span>
+            </div>
+            <div class="min-w-0">
+                <div class="text-sm text-gray-800">{{ log.action }}</div>
+                <div class="text-xs text-gray-400">{{ log.date|date:"d/m/Y H:i" }}</div>
+            </div>
+        </div>
+        {% empty %}
+        <p class="text-gray-400 text-sm text-center py-4">Aucune activité</p>
+        {% endfor %}
     </div>
 </div>
 

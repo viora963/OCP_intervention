@@ -150,22 +150,6 @@ def perm_required(perm):
     return decorator
 
 
-def any_perm_required(*perms):
-    """Variante de perm_required acceptant plusieurs permissions (OU logique)."""
-    def decorator(view_func):
-        @wraps(view_func)
-        def wrapper(request, *args, **kwargs):
-            if not request.user.is_authenticated:
-                return redirect_to_login(request.get_full_path())
-            if not any(request.user.has_perm(p) for p in perms):
-                return HttpResponseForbidden(
-                    "Accès refusé : votre rôle ne dispose d'aucune des permissions requises."
-                )
-            return view_func(request, *args, **kwargs)
-        return wrapper
-    return decorator
-
-
 # ───────────────────────────────────────────────
 # Règle object-level : un technicien n'agit que sur SES interventions
 # ───────────────────────────────────────────────

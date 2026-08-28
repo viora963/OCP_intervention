@@ -280,6 +280,7 @@ class Report(models.Model):
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Date de modification")
 
     class Meta:
+        ordering = ['-created_at']
         verbose_name = "Rapport"
         verbose_name_plural = "Rapports"
 

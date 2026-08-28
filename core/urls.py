@@ -31,6 +31,7 @@ urlpatterns = [
 
     # Actions inline
     path('interventions/<int:intervention_pk>/taches/creer/', views.task_create, name='task_create'),
+    path('taches/<int:pk>/statut/', views.task_update_status, name='task_update_status'),
     path('interventions/<int:intervention_pk>/messages/creer/', views.message_create, name='message_create'),
     path('interventions/<int:intervention_pk>/pieces/ajouter/', views.intervention_add_piece, name='intervention_add_piece'),
     path('interventions/<int:intervention_pk>/incidents/signaler/', views.incident_create, name='incident_create'),

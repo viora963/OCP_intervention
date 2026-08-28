@@ -123,7 +123,10 @@
                             {% if t.description %}<p class="text-xs text-gray-500 mt-0.5">{{ t.description|truncatechars:60 }}</p>{% endif %}
                         </div>
                     </div>
-                    <span class="badge {% if t.statut == 'terminee' %}bg-emerald-100 text-emerald-700{% elif t.statut == 'en_cours' %}bg-amber-100 text-amber-700{% else %}bg-gray-100 text-gray-600{% endif %} text-xs">{{ t.get_statut_display }}</span>
+                    <form method="post" action="{% url 'task_update_status' t.pk %}">
+                        {% csrf_token %}
+                        <button type="submit" title="Cliquer pour changer le statut" class="badge {% if t.statut == 'terminee' %}bg-emerald-100 text-emerald-700 hover:bg-emerald-200{% elif t.statut == 'en_cours' %}bg-amber-100 text-amber-700 hover:bg-amber-200{% else %}bg-gray-100 text-gray-600 hover:bg-gray-200{% endif %} text-xs cursor-pointer transition">{{ t.get_statut_display }}</button>
+                    </form>
                 </div>
                 {% empty %}
                 <div class="text-center py-10">
