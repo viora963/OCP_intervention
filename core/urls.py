@@ -6,6 +6,9 @@ urlpatterns = [
     path('logout/', views.logout_view, name='logout'),
 
     path('', views.dashboard, name='dashboard'),
+    # Suivi en temps réel
+    path('suivi/', views.suivi_temps_reel, name='suivi_temps_reel'),
+    path('suivi/data/', views.suivi_temps_reel_data, name='suivi_temps_reel_data'),
 
     # Clients
     path('clients/', views.client_list, name='client_list'),
@@ -28,6 +31,8 @@ urlpatterns = [
     path('interventions/<int:pk>/modifier/', views.intervention_edit, name='intervention_edit'),
     path('interventions/<int:pk>/supprimer/', views.intervention_delete, name='intervention_delete'),
     path('interventions/<int:pk>/assigner/', views.intervention_assign_technician, name='intervention_assign_technician'),
+    path('interventions/<int:pk>/demarrer/', views.intervention_start, name='intervention_start'),
+    path('interventions/<int:pk>/terminer/', views.intervention_finish, name='intervention_finish'),
 
     # Actions inline
     path('interventions/<int:intervention_pk>/taches/creer/', views.task_create, name='task_create'),
@@ -64,4 +69,5 @@ urlpatterns = [
     # Exports
     path('export/interventions/', views.export_interventions_csv, name='export_interventions'),
     path('export/stock/', views.export_stock_csv, name='export_stock'),
+    path('recherche/ajax/', views.recherche_globale, name='recherche_globale'),
 ]

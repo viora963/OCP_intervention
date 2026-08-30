@@ -1,0 +1,202 @@
+{% extends 'core/base.html' %}
+{% block title %}Suivi en temps réel — OCP{% endblock %}
+
+{% block content %}
+<div x-data="suiviTempsReel({{ refresh_interval_ms }})" x-init="init()">
+
+    <div class="mb-8 flex items-start justify-between flex-wrap gap-3">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                Suivi en temps réel
+                <span class="w-2 h-2 rounded-full bg-emerald-500 pulse-live" title="Actualisation automatique"></span>
+            </h1>
+            <p class="text-gray-500 mt-1">
+                Avancement des interventions, disponibilité des techniciens et incidents — mis à jour automatiquement.
+            </p>
+        </div>
+        <div class="flex items-center gap-3 text-sm">
+            <label class="flex items-center gap-2 text-gray-600 cursor-pointer select-none">
+                <input type="checkbox" x-model="autoRefresh" class="rounded border-gray-300 text-ocp-600 focus:ring-ocp-500">
+                Actualisation auto
+            </label>
+            <button @click="fetchData()" class="btn-secondary px-3 py-1.5 rounded-lg text-sm font-medium border border-gray-200 hover:bg-gray-50 transition flex items-center gap-1.5">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                Actualiser
+            </button>
+            <span class="text-gray-400 text-xs" x-text="lastUpdated ? 'Mis à jour à ' + lastUpdated : 'Chargement…'"></span>
+        </div>
+    </div>
+
+    <!-- Compteurs -->
+    <div class="grid grid-cols-2 sm:grid-cols-5 gap-4 mb-8">
+        <div class="card border-l-4 border-amber-500">
+            <div class="text-xs text-gray-500">En cours</div>
+            <div class="text-2xl font-bold text-gray-900 mt-1" x-text="counters.en_cours ?? '—'"></div>
+        </div>
+        <div class="card border-l-4 border-blue-500">
+            <div class="text-xs text-gray-500">Planifiées</div>
+            <div class="text-2xl font-bold text-gray-900 mt-1" x-text="counters.planifiees ?? '—'"></div>
+        </div>
+        <div class="card border-l-4 border-emerald-500">
+            <div class="text-xs text-gray-500">Techniciens dispo.</div>
+            <div class="text-2xl font-bold text-gray-900 mt-1">
+                <span x-text="counters.techniciens_dispo ?? '—'"></span><span class="text-sm text-gray-400"> / <span x-text="counters.techniciens_total ?? '—'"></span></span>
+            </div>
+        </div>
+        <div class="card border-l-4 border-red-500 col-span-2 sm:col-span-2">
+            <div class="text-xs text-gray-500">Incidents non résolus</div>
+            <div class="text-2xl font-bold text-gray-900 mt-1" x-text="counters.incidents_non_resolus ?? '—'"></div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Interventions actives -->
+        <div class="card lg:col-span-2">
+            <h2 class="text-lg font-semibold mb-4">Interventions actives</h2>
+            <div class="space-y-3" x-show="interventions.length">
+                <template x-for="i in interventions" :key="i.id">
+                    <a :href="'/interventions/' + i.id + '/'" class="block border border-gray-100 rounded-xl p-3 hover:border-ocp-300 hover:shadow-sm transition">
+                        <div class="flex items-start justify-between gap-3">
+                            <div class="min-w-0">
+                                <div class="flex items-center gap-2">
+                                    <span class="w-1.5 h-1.5 rounded-full"
+                                          :class="i.statut === 'en_cours' ? 'bg-amber-500 pulse-live' : (i.statut === 'planifiee' ? 'bg-blue-500' : 'bg-gray-400')"></span>
+                                    <span class="font-medium text-gray-900 truncate" x-text="i.titre"></span>
+                                    <span x-show="i.en_retard" class="badge bg-red-100 text-red-700 text-[10px]">En retard</span>
+                                </div>
+                                <div class="text-xs text-gray-500 mt-0.5">
+                                    <span x-text="i.client"></span>
+                                    <template x-if="i.technicien"> — <span x-text="i.technicien"></span></template>
+                                    <template x-if="!i.technicien"> — <span class="text-red-500">non assignée</span></template>
+                                </div>
+                            </div>
+                            <span class="badge text-[10px] shrink-0"
+                                  :class="i.statut === 'en_cours' ? 'bg-amber-100 text-amber-700' : (i.statut === 'planifiee' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600')"
+                                  x-text="i.statut_display"></span>
+                        </div>
+
+                        <!-- Avancement des tâches -->
+                        <template x-if="i.tasks_total > 0">
+                            <div class="mt-2 flex items-center gap-2">
+                                <div class="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                                    <div class="h-full bg-ocp-500 rounded-full"
+                                         :style="'width:' + Math.round((i.tasks_done / i.tasks_total) * 100) + '%'"></div>
+                                </div>
+                                <span class="text-[11px] text-gray-500 shrink-0" x-text="i.tasks_done + '/' + i.tasks_total + ' tâches'"></span>
+                            </div>
+                        </template>
+
+                        <!-- Temps écoulé -->
+                        <template x-if="i.elapsed_minutes !== null">
+                            <div class="text-[11px] text-gray-500 mt-1.5">
+                                En cours depuis <span class="font-medium" x-text="i.elapsed_minutes"></span> min
+                                (estimée : <span x-text="i.duree_estimee"></span> min)
+                            </div>
+                        </template>
+                    </a>
+                </template>
+            </div>
+            <p class="text-sm text-gray-400" x-show="!interventions.length">Aucune intervention active pour le moment.</p>
+        </div>
+
+        <!-- Incidents en direct -->
+        <div class="card">
+            <h2 class="text-lg font-semibold mb-4">Incidents signalés</h2>
+            <div class="space-y-3" x-show="incidents.length">
+                <template x-for="inc in incidents" :key="inc.id">
+                    <a :href="'/interventions/' + inc.intervention_id + '/'" class="block border-l-4 rounded-lg pl-3 py-1.5 hover:bg-gray-50 transition"
+                       :class="{
+                           'border-red-500': inc.gravite === 'critique',
+                           'border-orange-500': inc.gravite === 'majeure',
+                           'border-amber-400': inc.gravite === 'moderee',
+                           'border-gray-300': inc.gravite === 'mineure'
+                       }">
+                        <div class="flex items-center justify-between gap-2">
+                            <span class="text-sm font-medium text-gray-900 truncate" x-text="inc.titre"></span>
+                            <span class="badge text-[10px] shrink-0"
+                                  :class="{
+                                      'bg-red-100 text-red-700': inc.gravite === 'critique',
+                                      'bg-orange-100 text-orange-700': inc.gravite === 'majeure',
+                                      'bg-amber-100 text-amber-700': inc.gravite === 'moderee',
+                                      'bg-gray-100 text-gray-600': inc.gravite === 'mineure'
+                                  }" x-text="inc.gravite_display"></span>
+                        </div>
+                        <div class="text-[11px] text-gray-500 mt-0.5" x-text="inc.intervention_titre + ' · ' + inc.date_signalement"></div>
+                    </a>
+                </template>
+            </div>
+            <p class="text-sm text-gray-400" x-show="!incidents.length">Aucun incident non résolu.</p>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 gap-6 mt-6">
+        <!-- Techniciens -->
+        <div class="card">
+            <h2 class="text-lg font-semibold mb-4">Techniciens</h2>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="text-left text-gray-500 text-xs uppercase tracking-wide border-b border-gray-100">
+                            <th class="pb-2 pr-4">Technicien</th>
+                            <th class="pb-2 pr-4">Statut</th>
+                            <th class="pb-2 pr-4">Localisation</th>
+                            <th class="pb-2">Charge</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template x-for="t in techniciens" :key="t.id">
+                            <tr class="border-b border-gray-50 last:border-0">
+                                <td class="py-2 pr-4 font-medium text-gray-900" x-text="t.nom"></td>
+                                <td class="py-2 pr-4">
+                                    <span class="badge text-[10px]" :class="t.disponible ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600'"
+                                          x-text="t.disponible ? 'Disponible' : 'Occupé'"></span>
+                                </td>
+                                <td class="py-2 pr-4 text-gray-600" x-text="t.localisation || '—'"></td>
+                                <td class="py-2 text-gray-600" x-text="t.charge"></td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_body %}
+<script>
+function suiviTempsReel(intervalMs) {
+    return {
+        interventions: [],
+        techniciens: [],
+        incidents: [],
+        counters: {},
+        lastUpdated: null,
+        autoRefresh: true,
+        _timer: null,
+
+        init() {
+            this.fetchData();
+            this._timer = setInterval(() => {
+                if (this.autoRefresh) this.fetchData();
+            }, intervalMs);
+        },
+
+        async fetchData() {
+            try {
+                const res = await fetch("{% url 'suivi_temps_reel_data' %}", { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+                if (!res.ok) return;
+                const data = await res.json();
+                this.interventions = data.interventions;
+                this.techniciens = data.techniciens;
+                this.incidents = data.incidents;
+                this.counters = data.counters;
+                this.lastUpdated = data.generated_at;
+            } catch (e) {
+                console.error('Suivi temps réel : échec de rafraîchissement', e);
+            }
+        },
+    }
+}
+</script>
+{% endblock %}

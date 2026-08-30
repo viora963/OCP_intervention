@@ -1,0 +1,106 @@
+{% comment %}
+Contenu de la sidebar (logo, navigation, pied). Inclus deux fois
+par base.html : dans la sidebar desktop fixe et dans le tiroir mobile —
+DRY plutôt que dupliquer tout ce balisage à deux endroits.
+Détection du lien actif : `request.resolver_match.url_name` (context
+processor 'django.template.context_processors.request', déjà activé).
+{% endcomment %}
+{% url 'dashboard' as url_dashboard %}
+
+<!-- Logo -->
+<a href="{% url 'dashboard' %}" class="flex items-center gap-2.5 px-5 h-16 shrink-0 border-b border-white/10">
+    <div class="w-9 h-9 bg-gradient-to-br from-ocp-400 to-ocp-600 rounded-lg flex items-center justify-center shadow-lg shadow-ocp-500/30 shrink-0">
+        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+    </div>
+    <div class="min-w-0">
+        <span class="font-bold text-sm tracking-wide block truncate">OCP KHOURIBGA</span>
+        <span class="block text-[10px] text-ocp-300 -mt-0.5 tracking-widest uppercase truncate">Gestion Interventions</span>
+    </div>
+</a>
+
+<!-- Navigation -->
+<nav class="flex-1 overflow-y-auto scrollbar-hide px-3 py-5 space-y-7">
+    {% if is_portal_client %}
+    <div>
+        <a href="{% url 'client_portal_dashboard' %}" class="group flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors {% if request.resolver_match.url_name == 'client_portal_dashboard' %}bg-white/10 text-white{% else %}text-ocp-100/65 hover:bg-white/5 hover:text-white{% endif %}">
+            <svg class="w-[18px] h-[18px] shrink-0 {% if request.resolver_match.url_name == 'client_portal_dashboard' %}text-ocp-300{% else %}text-ocp-400/60 group-hover:text-ocp-300{% endif %} transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
+            Mes interventions
+        </a>
+    </div>
+    {% else %}
+    <div>
+        <p class="px-3 mb-2 text-[10px] font-bold uppercase tracking-widest text-ocp-400/60">
+            Tableau de bord
+        </p>
+        <div class="space-y-0.5">
+            <a href="{% url 'dashboard' %}" class="group flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors {% if request.resolver_match.url_name == 'dashboard' %}bg-white/10 text-white{% else %}text-ocp-100/65 hover:bg-white/5 hover:text-white{% endif %}">
+                <svg class="w-[18px] h-[18px] shrink-0 {% if request.resolver_match.url_name == 'dashboard' %}text-ocp-300{% else %}text-ocp-400/60 group-hover:text-ocp-300{% endif %} transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>
+                Dashboard
+            </a>
+            {% if perms.core.view_all_interventions %}
+            <a href="{% url 'suivi_temps_reel' %}" class="group flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors {% if request.resolver_match.url_name == 'suivi_temps_reel' %}bg-white/10 text-white{% else %}text-ocp-100/65 hover:bg-white/5 hover:text-white{% endif %}">
+                <svg class="w-[18px] h-[18px] shrink-0 {% if request.resolver_match.url_name == 'suivi_temps_reel' %}text-ocp-300{% else %}text-ocp-400/60 group-hover:text-ocp-300{% endif %} transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                <span class="flex-1">Suivi temps réel</span>
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 pulse-live shrink-0"></span>
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <div>
+        <p class="px-3 mb-2 text-[10px] font-bold uppercase tracking-widest text-ocp-400/60">
+            Gestion
+        </p>
+        <div class="space-y-0.5">
+            <a href="{% url 'intervention_list' %}" class="group flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors {% if request.resolver_match.url_name == 'intervention_list' or request.resolver_match.url_name == 'intervention_detail' %}bg-white/10 text-white{% else %}text-ocp-100/65 hover:bg-white/5 hover:text-white{% endif %}">
+                <svg class="w-[18px] h-[18px] shrink-0 {% if request.resolver_match.url_name == 'intervention_list' or request.resolver_match.url_name == 'intervention_detail' %}text-ocp-300{% else %}text-ocp-400/60 group-hover:text-ocp-300{% endif %} transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
+                Interventions
+            </a>
+            <a href="{% url 'client_list' %}" class="group flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors {% if request.resolver_match.url_name == 'client_list' %}bg-white/10 text-white{% else %}text-ocp-100/65 hover:bg-white/5 hover:text-white{% endif %}">
+                <svg class="w-[18px] h-[18px] shrink-0 {% if request.resolver_match.url_name == 'client_list' %}text-ocp-300{% else %}text-ocp-400/60 group-hover:text-ocp-300{% endif %} transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+                Clients
+            </a>
+            <a href="{% url 'technician_list' %}" class="group flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors {% if request.resolver_match.url_name == 'technician_list' %}bg-white/10 text-white{% else %}text-ocp-100/65 hover:bg-white/5 hover:text-white{% endif %}">
+                <svg class="w-[18px] h-[18px] shrink-0 {% if request.resolver_match.url_name == 'technician_list' %}text-ocp-300{% else %}text-ocp-400/60 group-hover:text-ocp-300{% endif %} transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                Techniciens
+            </a>
+            <a href="{% url 'sparepart_list' %}" class="group flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors {% if request.resolver_match.url_name == 'sparepart_list' %}bg-white/10 text-white{% else %}text-ocp-100/65 hover:bg-white/5 hover:text-white{% endif %}">
+                <svg class="w-[18px] h-[18px] shrink-0 {% if request.resolver_match.url_name == 'sparepart_list' %}text-ocp-300{% else %}text-ocp-400/60 group-hover:text-ocp-300{% endif %} transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+                Stock
+            </a>
+        </div>
+    </div>
+
+    <div>
+        <p class="px-3 mb-2 text-[10px] font-bold uppercase tracking-widest text-ocp-400/60">
+            Analyse
+        </p>
+        <div class="space-y-0.5">
+            <a href="{% url 'report_list' %}" class="group flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors {% if request.resolver_match.url_name == 'report_list' %}bg-white/10 text-white{% else %}text-ocp-100/65 hover:bg-white/5 hover:text-white{% endif %}">
+                <svg class="w-[18px] h-[18px] shrink-0 {% if request.resolver_match.url_name == 'report_list' %}text-ocp-300{% else %}text-ocp-400/60 group-hover:text-ocp-300{% endif %} transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                Rapports
+            </a>
+            {% if perms.core.view_statistics %}
+            <a href="{% url 'statistics' %}" class="group flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors {% if request.resolver_match.url_name == 'statistics' %}bg-white/10 text-white{% else %}text-ocp-100/65 hover:bg-white/5 hover:text-white{% endif %}">
+                <svg class="w-[18px] h-[18px] shrink-0 {% if request.resolver_match.url_name == 'statistics' %}text-ocp-300{% else %}text-ocp-400/60 group-hover:text-ocp-300{% endif %} transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                Stats
+            </a>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+</nav>
+
+<!-- Pied -->
+<div class="px-3 py-3 border-t border-white/10 space-y-0.5 shrink-0">
+    {% if perms.core.view_activitylog %}
+    <a href="{% url 'activity_log' %}" class="group flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors {% if request.resolver_match.url_name == 'activity_log' %}bg-white/10 text-white{% else %}text-ocp-100/65 hover:bg-white/5 hover:text-white{% endif %}">
+        <svg class="w-[18px] h-[18px] shrink-0 {% if request.resolver_match.url_name == 'activity_log' %}text-ocp-300{% else %}text-ocp-400/60 group-hover:text-ocp-300{% endif %} transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        Journal d'activité
+    </a>
+    {% endif %}
+    <a href="{% url 'logout' %}" class="group flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-red-300/90 hover:bg-red-500/10 hover:text-red-200 transition-colors">
+        <svg class="w-[18px] h-[18px] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+        Déconnexion
+    </a>
+</div>

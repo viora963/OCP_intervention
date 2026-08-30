@@ -52,6 +52,19 @@ html { scroll-behavior: smooth; }
 .animate-float { animation: float 9s ease-in-out infinite; }
 .animate-float-slow { animation: float 13s ease-in-out infinite reverse; }
 
+/* Base card container.
+   NOTE: `.card` is used all over the templates but was never actually
+   defined here as real CSS (only a @media print override existed below) —
+   cards were rendering as unstyled, borderless, padding-less <div>s. This
+   is the real definition. */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  padding: 1.5rem;
+  box-shadow: 0 1px 2px 0 rgba(15, 23, 42, 0.04), 0 1px 3px 0 rgba(15, 23, 42, 0.03);
+}
+
 /* Card hover lift */
 .card-hover {
   transition: transform 0.2s ease, box-shadow 0.2s ease;
@@ -59,6 +72,54 @@ html { scroll-behavior: smooth; }
 .card-hover:hover {
   transform: translateY(-2px);
   box-shadow: 0 10px 40px -10px rgba(0,0,0,0.1);
+}
+
+/* Hide scrollbar on the horizontally-scrollable desktop nav (fallback
+   when there are too many nav items to fit without wrapping). */
+.scrollbar-hide { scrollbar-width: none; -ms-overflow-style: none; }
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+
+/* Sidebar nav links (see core/templates/core/_sidebar.html) */
+.sidebar-link {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.625rem;
+  border-radius: 0.75rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #d1fae5; /* ocp-100 */
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+.sidebar-link:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+}
+.sidebar-link-active {
+  background: rgba(52, 211, 153, 0.14); /* ocp-400 @ 14% */
+  color: #fff;
+}
+.sidebar-link-active:hover { background: rgba(52, 211, 153, 0.18); }
+
+/* Icon "chip" behind each sidebar link's svg — flat by default, filled
+   solid ocp-400 with a dark icon when the link is active. Gives the nav
+   the layered "icon tile" look of modern SaaS dashboards instead of a
+   flat icon-plus-label row. */
+.sidebar-link-icon {
+  width: 1.75rem;
+  height: 1.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.5rem;
+  background: rgba(255, 255, 255, 0.06);
+  color: #6ee7b7; /* ocp-300 */
+  flex-shrink: 0;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+.sidebar-link-active .sidebar-link-icon {
+  background: #34d399; /* ocp-400 */
+  color: #022c22; /* ocp-950 */
 }
 
 /* Status badges */

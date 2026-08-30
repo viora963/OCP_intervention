@@ -4,10 +4,13 @@ from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages as django_messages
 from django.db import transaction
-from django.db.models import Count, Avg, Q, F
-from django.db.models.functions import TruncDate
-from django.http import HttpResponse, HttpResponseForbidden
+from django.db.models import Count, Avg, Q, F, Value
+from django.db.models.functions import TruncDate, Concat
+from django.http import HttpResponse, HttpResponseForbidden, JsonResponse
 from django.core.paginator import Paginator
+from django.utils import timezone
+from django.urls import reverse
+from django.utils.http import urlencode
 
 try:
     from xhtml2pdf import pisa
@@ -135,6 +138,7 @@ def dashboard_staff(request):
                 'total_incidents_non_resolus': total_incidents_non_resolus,
         'incidents_critiques': incidents_critiques,
         'dernieres_incidents_non_resolus': dernieres_incidents_non_resolus,
+        'taux_completion': round((interventions_terminees / total_interventions) * 100) if total_interventions else 0,
     }
     return render(request, 'core/dashboard.html', context)
 
@@ -166,6 +170,97 @@ def dashboard_technician(request):
         'total_terminees': total_terminees,
     }
     return render(request, 'core/technician_dashboard.html', context)
+
+# ───────────────────────────────────────────────
+# Suivi en temps réel
+# ───────────────────────────────────────────────
+# Répond au point du sujet de stage : « Suivi en temps réel : visibilité
+# complète sur l'état d'avancement des interventions, la localisation des
+# techniciens et les éventuels incidents rencontrés. »
+# Les données existaient déjà (Intervention.statut, Technician.lat/lng,
+# Incident) mais n'étaient affichées nulle part regroupées ni actualisées
+# automatiquement. Cette page ajoute cette vue de supervision, avec un
+# endpoint JSON interrogé par polling (voir suivi_temps_reel.html) pour
+# rafraîchir la carte et les listes sans recharger la page.
+
+@perm_required('core.view_all_interventions')
+def suivi_temps_reel(request):
+    """Page de supervision temps réel (carte + listes), chargée une fois ;
+    le contenu dynamique est ensuite alimenté par suivi_temps_reel_data."""
+    return render(request, 'core/suivi_temps_reel.html', {
+        'refresh_interval_ms': 8000,
+    })
+
+
+@perm_required('core.view_all_interventions')
+def suivi_temps_reel_data(request):
+    """Endpoint JSON interrogé en polling par la page de suivi temps réel."""
+    now = timezone.now()
+
+    interventions_qs = Intervention.objects.filter(
+        statut__in=['en_attente', 'planifiee', 'en_cours']
+    ).select_related('client', 'technicien').prefetch_related('tasks')
+
+    interventions = []
+    for i in interventions_qs:
+        taches = list(i.tasks.all())
+        elapsed = None
+        if i.statut == 'en_cours' and i.date_debut:
+            elapsed = int((now - i.date_debut).total_seconds() / 60)
+        interventions.append({
+            'id': i.id,
+            'titre': i.titre,
+            'client': i.client.nom,
+            'technicien': str(i.technicien) if i.technicien else None,
+            'technicien_id': i.technicien_id,
+            'statut': i.statut,
+            'statut_display': i.get_statut_display(),
+            'priorite': i.priorite,
+            'priorite_display': i.get_priorite_display(),
+            'localisation': i.localisation,
+            'elapsed_minutes': elapsed,
+            'duree_estimee': i.duree_estimee,
+            'tasks_done': len([t for t in taches if t.statut == 'terminee']),
+            'tasks_total': len(taches),
+            'en_retard': i.est_en_retard(),
+        })
+
+    techniciens = []
+    for t in Technician.objects.all():
+        techniciens.append({
+            'id': t.id,
+            'nom': str(t),
+            'disponible': t.disponible,
+            'localisation': t.localisation,
+            'charge': t.charge_actuelle(),
+        })
+
+    incidents_qs = Incident.objects.filter(resolu=False).select_related('intervention').order_by('-date_signalement')[:20]
+    incidents = [{
+        'id': inc.id,
+        'titre': inc.titre,
+        'gravite': inc.gravite,
+        'gravite_display': inc.get_gravite_display(),
+        'intervention_id': inc.intervention_id,
+        'intervention_titre': inc.intervention.titre,
+        'date_signalement': inc.date_signalement.strftime('%d/%m %H:%M'),
+    } for inc in incidents_qs]
+
+    data = {
+        'generated_at': now.strftime('%d/%m/%Y %H:%M:%S'),
+        'counters': {
+            'en_cours': sum(1 for i in interventions if i['statut'] == 'en_cours'),
+            'planifiees': sum(1 for i in interventions if i['statut'] == 'planifiee'),
+            'techniciens_dispo': sum(1 for t in techniciens if t['disponible']),
+            'techniciens_total': len(techniciens),
+            'incidents_non_resolus': len(incidents),
+        },
+        'interventions': interventions,
+        'techniciens': techniciens,
+        'incidents': incidents,
+    }
+    return JsonResponse(data)
+
 
 
 # ───────────────────────────────────────────────
@@ -465,7 +560,20 @@ def intervention_assign_technician(request, pk):
         old_tech = intervention.technicien
         technicien = form.cleaned_data['technicien']
         intervention.technicien = technicien
-        intervention.save(update_fields=['technicien'])
+
+        # Une intervention encore "en attente" (jamais assignée, jamais
+        # planifiée) passe automatiquement à "planifiée" dès qu'on lui
+        # donne un technicien — c'est la définition même du statut
+        # "planifiée" (cf. Intervention.est_en_retard, qui se base
+        # dessus). On ne touche PAS au statut si l'intervention est déjà
+        # en_cours/terminee/annulee : une réassignation en cours de route
+        # ne doit jamais faire régresser ou effacer un statut plus avancé.
+        update_fields = ['technicien']
+        if intervention.statut == 'en_attente':
+            intervention.statut = 'planifiee'
+            update_fields.append('statut')
+
+        intervention.save(update_fields=update_fields)
 
         if old_tech != technicien:
             notifier_assignation(intervention)
@@ -482,6 +590,68 @@ def intervention_assign_technician(request, pk):
             django_messages.success(request, f"Intervention assignée à {technicien}.")
     else:
         django_messages.error(request, "Veuillez choisir un technicien valide.")
+
+    return redirect('intervention_detail', pk=intervention.pk)
+
+
+@login_required
+def intervention_start(request, pk):
+    """
+    Démarrage en un clic par le technicien assigné (ou un rôle avec droit
+    d'édition complet) — passe le statut à 'en_cours'. Le modèle
+    (Intervention.save()) remplit automatiquement `date_debut` à ce
+    passage, donc aucune logique de date à dupliquer ici.
+    """
+    intervention = get_object_or_404(Intervention, pk=pk)
+
+    if not user_can_edit_intervention(request.user, intervention):
+        return HttpResponseForbidden("Vous ne pouvez démarrer que vos interventions.")
+
+    if request.method != 'POST':
+        return redirect('intervention_detail', pk=intervention.pk)
+
+    if intervention.statut in ('en_attente', 'planifiee'):
+        intervention.statut = 'en_cours'
+        intervention.save(update_fields=['statut', 'date_debut'])
+        log_activity(request.user, "Démarrage intervention", f"#{intervention.id}")
+        django_messages.success(request, "Intervention démarrée.")
+    else:
+        django_messages.error(
+            request,
+            f"Impossible de démarrer : l'intervention est déjà « {intervention.get_statut_display()} »."
+        )
+
+    return redirect('intervention_detail', pk=intervention.pk)
+
+
+@login_required
+def intervention_finish(request, pk):
+    """
+    Fin en un clic par le technicien assigné (ou un rôle avec droit
+    d'édition complet) — passe le statut à 'terminee'. Comme pour le
+    démarrage, `date_fin` est auto-rempli par le modèle. Notifie le
+    créateur de l'intervention, comme le fait déjà `intervention_edit`
+    pour ce même changement de statut.
+    """
+    intervention = get_object_or_404(Intervention, pk=pk)
+
+    if not user_can_edit_intervention(request.user, intervention):
+        return HttpResponseForbidden("Vous ne pouvez terminer que vos interventions.")
+
+    if request.method != 'POST':
+        return redirect('intervention_detail', pk=intervention.pk)
+
+    if intervention.statut == 'en_cours':
+        intervention.statut = 'terminee'
+        intervention.save(update_fields=['statut', 'date_fin'])
+        notifier_terminaison(intervention)
+        log_activity(request.user, "Fin intervention", f"#{intervention.id}")
+        django_messages.success(request, "Intervention marquée comme terminée.")
+    else:
+        django_messages.error(
+            request,
+            "Impossible de terminer : l'intervention doit d'abord être « En cours »."
+        )
 
     return redirect('intervention_detail', pk=intervention.pk)
 
@@ -538,6 +708,7 @@ def intervention_detail(request, pk):
         'piece_form': piece_form,
         'incident_form': incident_form,
         'can_manage': request.user.has_perm('core.change_intervention'),
+        'can_edit': user_can_edit_intervention(request.user, intervention),
     })
 
 
@@ -1103,3 +1274,59 @@ def export_stock_csv(request):
     for p in SparePart.objects.all():
         writer.writerow([p.reference, p.nom, p.quantite_stock, p.quantite_minimale, p.prix_unitaire, p.fournisseur])
     return response
+
+
+@login_required
+def recherche_globale(request):
+    """Recherche globale pour la barre du top bar — interroge interventions,
+    clients, techniciens et pièces en une fois, limité à 5 résultats par
+    catégorie pour rester lisible dans le menu déroulant."""
+    data = {'interventions': [], 'clients': [], 'techniciens': [], 'pieces': []}
+
+    # Même règle que la vue `search` : un compte portail client ne doit
+    # jamais voir les référentiels internes (autres clients, techniciens,
+    # interventions) via cet endpoint — sinon la recherche globale devient
+    # une fuite vers les données d'autres clients.
+    if is_portal_client(request.user):
+        return JsonResponse(data)
+
+    q = request.GET.get('q', '').strip()
+    if len(q) < 2:
+        return JsonResponse(data)
+
+    interventions = Intervention.objects.filter(
+        Q(titre__icontains=q) | Q(client__nom__icontains=q)
+    ).select_related('client')[:5]
+    data['interventions'] = [{
+        'titre': i.titre,
+        'client': i.client.nom if i.client else '',
+        'statut': i.get_statut_display(),
+        'url': reverse('intervention_detail', args=[i.pk]),
+    } for i in interventions]
+
+    clients = Client.objects.filter(nom__icontains=q)[:5]
+    data['clients'] = [{
+        'nom': c.nom,
+        'url': reverse('client_list') + '?' + urlencode({'q': c.nom}),
+    } for c in clients]
+
+    techniciens = Technician.objects.annotate(
+        nom_complet=Concat('prenom', Value(' '), 'nom')
+    ).filter(
+        Q(nom__icontains=q) | Q(prenom__icontains=q) | Q(nom_complet__icontains=q)
+    )[:5]
+    data['techniciens'] = [{
+        'nom': f'{t.prenom} {t.nom}',
+        'url': reverse('technician_list') + '?' + urlencode({'q': t.nom}),
+    } for t in techniciens]
+
+    pieces = SparePart.objects.filter(
+        Q(nom__icontains=q) | Q(reference__icontains=q)
+    )[:5]
+    data['pieces'] = [{
+        'nom': p.nom,
+        'reference': p.reference,
+        'url': reverse('sparepart_list') + '?' + urlencode({'q': p.nom}),
+    } for p in pieces]
+
+    return JsonResponse(data)

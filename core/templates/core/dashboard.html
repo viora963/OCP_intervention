@@ -4,79 +4,172 @@
 <span class="text-gray-700 font-medium">Tableau de bord</span>
 {% endblock %}
 {% block title %}Tableau de bord — OCP{% endblock %}
+
+{% block extra_head %}
+<style>
+    .tabular { font-variant-numeric: tabular-nums; }
+    .timeline-line { position: absolute; left: 15px; top: 32px; bottom: -12px; width: 1px; background: linear-gradient(to bottom, #e5e7eb, transparent); }
+    .timeline-item:last-child .timeline-line { display: none; }
+    @keyframes fade-up { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+    .fade-up { animation: fade-up 0.4s ease-out both; }
+</style>
+{% endblock %}
+
 {% block content %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 
-<div class="mb-8">
-    <h1 class="text-2xl font-bold text-gray-900">Tableau de bord</h1>
-    <p class="text-gray-500 text-sm mt-1">Vue d'ensemble opérationnelle en temps réel</p>
+<div x-data="dashboardClock()" x-init="init()">
+
+<!-- Header -->
+<div class="mb-7 flex items-start justify-between flex-wrap gap-3">
+    <div>
+        <h1 class="text-2xl font-bold text-gray-900 tracking-tight">Tableau de bord</h1>
+        <p class="text-gray-500 text-sm mt-1 flex items-center gap-2">
+            <span x-text="dateStr"></span>
+            <span class="text-gray-300">·</span>
+            <span class="tabular" x-text="timeStr"></span>
+        </p>
+    </div>
+    {% if perms.core.view_all_interventions %}
+    <div class="flex items-center gap-2 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-full pl-2.5 pr-3.5 py-1.5 text-xs font-medium">
+        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 pulse-live"></span>
+        Données live
+    </div>
+    {% endif %}
 </div>
 
-<!-- KPI Cards -->
-<div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-    <div class="card-hover p-5 border-l-4 border-ocp-500">
-        <div class="flex items-center justify-between">
-            <div>
-                <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Interventions</p>
-                <p class="text-2xl font-bold text-gray-900 mt-1">{{ total_interventions }}</p>
-            </div>
-            <div class="w-10 h-10 rounded-lg bg-ocp-50 flex items-center justify-center">
-                <svg class="w-5 h-5 text-ocp-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+<!-- KPI band : jauge + 4 cartes -->
+<div class="grid grid-cols-1 lg:grid-cols-5 gap-4 mb-6">
+    <!-- Jauge de complétion (signature) -->
+    <div class="lg:col-span-1 card !p-5 flex flex-col items-center justify-center text-center fade-up">
+        <div class="relative w-24 h-24">
+            <canvas id="completionGauge"></canvas>
+            <div class="absolute inset-0 flex flex-col items-center justify-center">
+                <span class="text-xl font-black text-gray-900 tabular">{{ taux_completion|default:0 }}%</span>
             </div>
         </div>
+        <p class="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mt-3">Taux d'achèvement</p>
+        <p class="text-[11px] text-gray-400 tabular">{{ interventions_terminees }} / {{ total_interventions }}</p>
     </div>
-    <div class="card-hover p-5 border-l-4 border-emerald-500">
-        <div class="flex items-center justify-between">
-            <div>
-                <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Terminées</p>
-                <p class="text-2xl font-bold text-gray-900 mt-1">{{ interventions_terminees }}</p>
+
+    <div class="lg:col-span-4 grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="card card-hover !p-5 fade-up" style="animation-delay:.05s">
+            <div class="flex items-start justify-between">
+                <div class="w-10 h-10 rounded-xl bg-ocp-50 flex items-center justify-center shrink-0">
+                    <svg class="w-5 h-5 text-ocp-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                </div>
             </div>
-            <div class="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center">
-                <svg class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-            </div>
+            <p class="text-2xl font-black text-gray-900 mt-3 tabular">{{ total_interventions }}</p>
+            <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider mt-0.5">Interventions</p>
         </div>
-    </div>
-    <div class="card-hover p-5 border-l-4 border-amber-500">
-        <div class="flex items-center justify-between">
-            <div>
-                <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider">En cours</p>
-                <p class="text-2xl font-bold text-gray-900 mt-1">{{ interventions_en_cours }}</p>
-            </div>
-            <div class="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center">
+
+        <div class="card card-hover !p-5 fade-up" style="animation-delay:.1s">
+            <div class="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center shrink-0">
                 <svg class="w-5 h-5 text-amber-600 pulse-live" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
             </div>
+            <p class="text-2xl font-black text-gray-900 mt-3 tabular">{{ interventions_en_cours }}</p>
+            <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider mt-0.5">En cours</p>
+            {% if total_interventions %}
+            <p class="text-[11px] text-amber-600 font-medium mt-1 tabular">{% widthratio interventions_en_cours total_interventions 100 %}% du total</p>
+            {% endif %}
         </div>
-    </div>
-    <div class="card-hover p-5 border-l-4 border-red-500">
-        <div class="flex items-center justify-between">
-            <div>
-                <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider">En retard</p>
-                <p class="text-2xl font-bold text-gray-900 mt-1">{{ interventions_retard|length }}</p>
-            </div>
-            <div class="w-10 h-10 rounded-lg bg-red-50 flex items-center justify-center">
+
+        <div class="card card-hover !p-5 fade-up" style="animation-delay:.15s">
+            <div class="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center shrink-0">
                 <svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
             </div>
+            <p class="text-2xl font-black text-gray-900 mt-3 tabular">{{ interventions_retard|length }}</p>
+            <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider mt-0.5">En retard</p>
+            <p class="text-[11px] mt-1 {% if interventions_retard %}text-red-600 font-medium{% else %}text-emerald-600{% endif %}">
+                {% if interventions_retard %}À traiter{% else %}Aucun retard{% endif %}
+            </p>
+        </div>
+
+        <div class="card card-hover !p-5 fade-up" style="animation-delay:.2s">
+            <div class="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
+                <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+            </div>
+            <p class="text-2xl font-black text-gray-900 mt-3 tabular">{{ techniciens_disponibles }}<span class="text-base text-gray-300 font-medium"> / {{ total_techniciens }}</span></p>
+            <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider mt-0.5">Techniciens dispo.</p>
         </div>
     </div>
 </div>
 
-<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-    <!-- Chart -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+    <!-- Chart + répartition -->
     <div class="lg:col-span-2 card">
-        <div class="flex items-center justify-between mb-5">
+        <div class="flex items-center justify-between mb-1">
             <h2 class="text-base font-bold text-gray-900 flex items-center gap-2">
                 <svg class="w-5 h-5 text-ocp-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"/></svg>
                 Activité des interventions
             </h2>
             <a href="{% url 'intervention_list' %}" class="btn-ghost">Voir tout</a>
         </div>
-        <div class="h-64">
+        <!-- Barre de répartition empilée -->
+        <div class="flex h-2.5 rounded-full overflow-hidden mt-4 mb-2 bg-gray-100">
+            {% if total_interventions %}
+            <div class="bg-gray-400" style="width:{% widthratio interventions_en_attente total_interventions 100 %}%" title="En attente"></div>
+            <div class="bg-blue-500" style="width:{% widthratio interventions_planifiees total_interventions 100 %}%" title="Planifiées"></div>
+            <div class="bg-amber-500" style="width:{% widthratio interventions_en_cours total_interventions 100 %}%" title="En cours"></div>
+            <div class="bg-emerald-500" style="width:{% widthratio interventions_terminees total_interventions 100 %}%" title="Terminées"></div>
+            <div class="bg-red-400" style="width:{% widthratio interventions_annulees total_interventions 100 %}%" title="Annulées"></div>
+            {% endif %}
+        </div>
+        <div class="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-gray-500 mb-4">
+            <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-gray-400"></span>Attente ({{ interventions_en_attente }})</span>
+            <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-blue-500"></span>Planifiées ({{ interventions_planifiees }})</span>
+            <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-amber-500"></span>En cours ({{ interventions_en_cours }})</span>
+            <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-emerald-500"></span>Terminées ({{ interventions_terminees }})</span>
+            <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-red-400"></span>Annulées ({{ interventions_annulees }})</span>
+        </div>
+        <div class="h-56">
             <canvas id="interventionChart"></canvas>
         </div>
     </div>
 
-    <!-- Side panels -->
-    <div class="space-y-6">
+    {% if perms.core.view_all_interventions %}
+    <!-- Résumé suivi temps réel -->
+    <div class="card" x-data="suiviSummary()" x-init="init()">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-base font-bold text-gray-900 flex items-center gap-2">
+                <svg class="w-5 h-5 text-ocp-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                Suivi en temps réel
+            </h2>
+            <a href="{% url 'suivi_temps_reel' %}" class="text-ocp-600 hover:underline font-medium text-xs flex items-center gap-0.5 shrink-0">
+                Tout voir
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+            </a>
+        </div>
+        <div class="space-y-4">
+            <div>
+                <div class="flex items-center justify-between text-sm mb-1.5">
+                    <span class="text-gray-500">Interventions en cours</span>
+                    <span class="font-bold text-amber-600 tabular" x-text="counters.en_cours ?? '—'"></span>
+                </div>
+            </div>
+            <div>
+                <div class="flex items-center justify-between text-sm mb-1.5">
+                    <span class="text-gray-500">Techniciens disponibles</span>
+                    <span class="font-bold text-emerald-600 tabular" x-text="(counters.techniciens_dispo ?? '—') + ' / ' + (counters.techniciens_total ?? '—')"></span>
+                </div>
+                <div class="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                    <div class="h-full bg-emerald-500 rounded-full transition-all duration-500"
+                         :style="'width:' + (counters.techniciens_total ? Math.round((counters.techniciens_dispo / counters.techniciens_total) * 100) : 0) + '%'"></div>
+                </div>
+            </div>
+            <div class="flex items-center justify-between text-sm pt-1">
+                <span class="text-gray-500 flex items-center gap-1.5">
+                    <span x-show="counters.incidents_non_resolus" class="w-1.5 h-1.5 rounded-full bg-red-500 pulse-live"></span>
+                    Incidents non résolus
+                </span>
+                <span class="font-bold tabular" :class="counters.incidents_non_resolus ? 'text-red-600' : 'text-gray-400'" x-text="counters.incidents_non_resolus ?? '—'"></span>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <!-- Stock alerts -->
         <div class="card">
             <div class="flex items-center justify-between mb-4">
@@ -86,14 +179,19 @@
                 </h2>
                 <a href="{% url 'sparepart_list' %}?alertes=1" class="text-xs text-ocp-600 hover:underline font-medium">Voir tout</a>
             </div>
-            <div class="space-y-3">
+            <div class="space-y-2.5">
                 {% for p in alertes_stock %}
                 <div class="flex items-center justify-between p-3 bg-red-50/50 rounded-lg border border-red-100">
-                    <div class="min-w-0">
-                        <div class="font-medium text-gray-900 text-sm truncate">{{ p.nom }}</div>
-                        <div class="text-xs text-gray-500">{{ p.reference }}</div>
+                    <div class="min-w-0 flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center shrink-0">
+                            <svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        </div>
+                        <div class="min-w-0">
+                            <div class="font-medium text-gray-900 text-sm truncate">{{ p.nom }}</div>
+                            <div class="text-xs text-gray-500">{{ p.reference }}</div>
+                        </div>
                     </div>
-                    <span class="shrink-0 text-red-600 font-bold text-sm">{{ p.quantite_stock }}<span class="text-red-400 font-normal">/{{ p.quantite_minimale }}</span></span>
+                    <span class="shrink-0 text-red-600 font-bold text-sm tabular">{{ p.quantite_stock }}<span class="text-red-400 font-normal">/{{ p.quantite_minimale }}</span></span>
                 </div>
                 {% empty %}
                 <div class="text-center py-6">
@@ -116,7 +214,7 @@
                 <span class="text-xs text-red-600 font-semibold">{{ incidents_critiques }} critique{{ incidents_critiques|pluralize }}</span>
                 {% endif %}
             </div>
-            <div class="space-y-3">
+            <div class="space-y-2.5">
                 {% for inc in dernieres_incidents_non_resolus %}
                 <a href="{% url 'intervention_detail' inc.intervention_id %}" class="flex items-center justify-between p-3 {% if inc.gravite == 'critique' %}bg-red-50/50 border-red-100{% else %}bg-amber-50/50 border-amber-100{% endif %} rounded-lg border hover:opacity-80 transition">
                     <div class="min-w-0">
@@ -133,7 +231,6 @@
                 {% endfor %}
             </div>
         </div>
-    </div>
 </div>
 
 <!-- Recent interventions table -->
@@ -148,9 +245,9 @@
         <table class="w-full text-sm">
             <thead>
                 <tr class="border-b border-gray-100">
-                    <th class="text-left py-3 px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">ID</th>
-                    <th class="text-left py-3 px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Titre</th>
                     <th class="text-left py-3 px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Client</th>
+                    <th class="text-left py-3 px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Titre</th>
+                    <th class="text-left py-3 px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Priorité</th>
                     <th class="text-left py-3 px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Statut</th>
                     <th class="text-left py-3 px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Date</th>
                 </tr>
@@ -158,18 +255,30 @@
             <tbody class="divide-y divide-gray-50">
                 {% for i in dernieres_interventions %}
                 <tr class="hover:bg-gray-50/50 transition group">
-                    <td class="py-3 px-3 text-gray-400 font-mono text-xs">#{{ i.id }}</td>
                     <td class="py-3 px-3">
-                        <a href="{% url 'intervention_detail' i.pk %}" class="font-medium text-gray-900 group-hover:text-ocp-600 transition">{{ i.titre|truncatechars:45 }}</a>
+                        <div class="flex items-center gap-2.5">
+                            <div class="w-7 h-7 rounded-full bg-ocp-100 text-ocp-700 flex items-center justify-center text-[11px] font-bold shrink-0">
+                                {{ i.client.nom|first|upper }}
+                            </div>
+                            <span class="text-gray-700 truncate">{{ i.client.nom }}</span>
+                        </div>
                     </td>
-                    <td class="py-3 px-3 text-gray-600">{{ i.client.nom }}</td>
+                    <td class="py-3 px-3">
+                        <a href="{% url 'intervention_detail' i.pk %}" class="font-medium text-gray-900 group-hover:text-ocp-600 transition">{{ i.titre|truncatechars:40 }}</a>
+                        <div class="text-gray-400 font-mono text-[11px]">#{{ i.id }}</div>
+                    </td>
+                    <td class="py-3 px-3">
+                        <span class="badge text-[10px] {% if i.priorite == 'critique' %}bg-red-100 text-red-700{% elif i.priorite == 'haute' %}bg-orange-100 text-orange-700{% elif i.priorite == 'moyenne' %}bg-blue-100 text-blue-700{% else %}bg-gray-100 text-gray-500{% endif %}">
+                            {{ i.get_priorite_display }}
+                        </span>
+                    </td>
                     <td class="py-3 px-3">
                         <span class="badge {% if i.statut == 'terminee' %}bg-emerald-100 text-emerald-700{% elif i.statut == 'en_cours' %}bg-amber-100 text-amber-700{% elif i.statut == 'planifiee' %}bg-blue-100 text-blue-700{% else %}bg-gray-100 text-gray-600{% endif %}">
                             {% if i.statut == 'en_cours' %}<span class="w-1.5 h-1.5 rounded-full bg-amber-500 mr-1.5 pulse-live"></span>{% endif %}
                             {{ i.get_statut_display }}
                         </span>
                     </td>
-                    <td class="py-3 px-3 text-gray-400 text-xs">{{ i.date_creation|date:"d/m/Y H:i" }}</td>
+                    <td class="py-3 px-3 text-gray-400 text-xs tabular">{{ i.date_creation|date:"d/m/Y H:i" }}</td>
                 </tr>
                 {% empty %}
                 <tr><td colspan="5" class="py-12 text-center text-gray-400">
@@ -181,30 +290,25 @@
         </table>
     </div>
 </div>
-<!-- Recent activity -->
-<div class="mt-6 card">
-    <h2 class="text-base font-bold text-gray-900 mb-4 flex items-center gap-2">
-        <svg class="w-5 h-5 text-ocp-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-        Activité récente
-    </h2>
-    <div class="space-y-3">
-        {% for log in dernieres_activites %}
-        <div class="flex gap-3 items-start">
-            <div class="w-8 h-8 rounded-full bg-ocp-50 flex items-center justify-center shrink-0 mt-0.5">
-                <span class="text-xs font-bold text-ocp-600">{{ log.utilisateur.username|first|upper|default:"S" }}</span>
-            </div>
-            <div class="min-w-0">
-                <div class="text-sm text-gray-800">{{ log.action }}</div>
-                <div class="text-xs text-gray-400">{{ log.date|date:"d/m/Y H:i" }}</div>
-            </div>
-        </div>
-        {% empty %}
-        <p class="text-gray-400 text-sm text-center py-4">Aucune activité</p>
-        {% endfor %}
-    </div>
+
 </div>
 
 <script>
+function dashboardClock() {
+    return {
+        dateStr: '', timeStr: '',
+        init() {
+            this._tick();
+            setInterval(() => this._tick(), 1000);
+        },
+        _tick() {
+            const now = new Date();
+            this.dateStr = now.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+            this.timeStr = now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        },
+    }
+}
+
 const ctx = document.getElementById('interventionChart');
 if (ctx) {
     new Chart(ctx, {
@@ -212,11 +316,11 @@ if (ctx) {
         data: {
             labels: ['En attente', 'Planifiées', 'En cours', 'Terminées', 'Annulées'],
             datasets: [{
-                label: 'Interventions',
                 data: [{{ interventions_en_attente }}, {{ interventions_planifiees }}, {{ interventions_en_cours }}, {{ interventions_terminees }}, {{ interventions_annulees }}],
-                backgroundColor: ['#9ca3af', '#3b82f6', '#f59e0b', '#10b981', '#ef4444'],
+                backgroundColor: ['#9ca3af', '#3b82f6', '#f59e0b', '#10b981', '#f87171'],
                 borderRadius: 6,
                 borderSkipped: false,
+                barThickness: 32,
             }]
         },
         options: {
@@ -230,5 +334,48 @@ if (ctx) {
         }
     });
 }
+
+const gaugeCtx = document.getElementById('completionGauge');
+if (gaugeCtx) {
+    const done = {{ interventions_terminees }};
+    const total = {{ total_interventions }} || 1;
+    new Chart(gaugeCtx, {
+        type: 'doughnut',
+        data: {
+            datasets: [{
+                data: [done, Math.max(total - done, 0)],
+                backgroundColor: ['#10b981', '#f3f4f6'],
+                borderWidth: 0,
+            }]
+        },
+        options: {
+            cutout: '78%',
+            plugins: { legend: { display: false }, tooltip: { enabled: false } },
+            animation: { animateRotate: true, duration: 800 },
+        }
+    });
+}
+
+{% if perms.core.view_all_interventions %}
+function suiviSummary() {
+    return {
+        counters: {},
+        init() {
+            this.fetchData();
+            setInterval(() => this.fetchData(), 15000);
+        },
+        async fetchData() {
+            try {
+                const res = await fetch("{% url 'suivi_temps_reel_data' %}", { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+                if (!res.ok) return;
+                const data = await res.json();
+                this.counters = data.counters;
+            } catch (e) {
+                console.error('Dashboard : échec de rafraîchissement du résumé', e);
+            }
+        },
+    }
+}
+{% endif %}
 </script>
 {% endblock %}
