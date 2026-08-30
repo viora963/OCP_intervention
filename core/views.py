@@ -19,15 +19,14 @@ except ImportError:
     XHTML2PDF_AVAILABLE = False
 
 from .models import (
-    Client, Technician, SparePart, Intervention,
-    InterventionPiece, Report, Task,
-    StockMovement, ActivityLog, Incident
+    Client, Technician, SparePart, Intervention, InterventionPiece,
+    Task, Report, Message, StockMovement, ActivityLog, Incident, ClientEvaluation
 )
 from .forms import (
     LoginForm, ClientForm, TechnicianForm, SparePartForm,
     InterventionForm, InterventionTechnicianForm, InterventionAssignForm,
     TaskForm, ReportForm, MessageForm, StockMovementForm,
-    InterventionPieceForm, IncidentForm
+    InterventionPieceForm, IncidentForm, ClientEvaluationForm
 )
 from .services import StockService
 from .utils import (
@@ -105,8 +104,6 @@ def dashboard_staff(request):
 
     # Alertes stock sous seuil
     alertes_stock = SparePart.objects.filter(quantite_stock__lte=F('quantite_minimale'))[:5]
-    # Alertes stock sous seuil
-    alertes_stock = SparePart.objects.filter(quantite_stock__lte=F('quantite_minimale'))[:5]
 
     # Incidents non résolus
     incidents_non_resolus = Incident.objects.filter(resolu=False).select_related('intervention')
@@ -114,7 +111,6 @@ def dashboard_staff(request):
     incidents_critiques = incidents_non_resolus.filter(gravite='critique').count()
     dernieres_incidents_non_resolus = incidents_non_resolus.order_by('-date_signalement')[:5]
 
-    # Dernières interventions
     # Dernières interventions
     dernieres_interventions = Intervention.objects.select_related('client', 'technicien')[:10]
 
@@ -135,7 +131,7 @@ def dashboard_staff(request):
         'alertes_stock': alertes_stock,
         'dernieres_interventions': dernieres_interventions,
         'dernieres_activites': dernieres_activites,
-                'total_incidents_non_resolus': total_incidents_non_resolus,
+        'total_incidents_non_resolus': total_incidents_non_resolus,
         'incidents_critiques': incidents_critiques,
         'dernieres_incidents_non_resolus': dernieres_incidents_non_resolus,
         'taux_completion': round((interventions_terminees / total_interventions) * 100) if total_interventions else 0,
@@ -174,14 +170,6 @@ def dashboard_technician(request):
 # ───────────────────────────────────────────────
 # Suivi en temps réel
 # ───────────────────────────────────────────────
-# Répond au point du sujet de stage : « Suivi en temps réel : visibilité
-# complète sur l'état d'avancement des interventions, la localisation des
-# techniciens et les éventuels incidents rencontrés. »
-# Les données existaient déjà (Intervention.statut, Technician.lat/lng,
-# Incident) mais n'étaient affichées nulle part regroupées ni actualisées
-# automatiquement. Cette page ajoute cette vue de supervision, avec un
-# endpoint JSON interrogé par polling (voir suivi_temps_reel.html) pour
-# rafraîchir la carte et les listes sans recharger la page.
 
 @perm_required('core.view_all_interventions')
 def suivi_temps_reel(request):
@@ -262,15 +250,12 @@ def suivi_temps_reel_data(request):
     return JsonResponse(data)
 
 
-
 # ───────────────────────────────────────────────
 # Clients
 # ───────────────────────────────────────────────
 
 @login_required
 def client_list(request):
-    # Référentiel interne : un compte client externe ne doit jamais
-    # pouvoir parcourir la liste des AUTRES clients de l'entreprise.
     if is_portal_client(request.user):
         return redirect('client_portal_dashboard')
     q = request.GET.get('q', '')
@@ -412,9 +397,6 @@ def technician_detail(request, pk):
 
 @login_required
 def intervention_list(request):
-    # Vue opérationnelle interne (filtres, export, colonnes techniciens...).
-    # Un client externe a sa propre liste, volontairement plus simple :
-    # core/views.py::client_portal_dashboard.
     if is_portal_client(request.user):
         return redirect('client_portal_dashboard')
     q = request.GET.get('q', '')
@@ -425,7 +407,6 @@ def intervention_list(request):
     interventions = Intervention.objects.select_related('client', 'technicien')
 
     if not has_global_intervention_access(request.user):
-        # Pas de visibilité globale : ne voit que ses interventions
         tech = get_technician_profile(request.user)
         interventions = interventions.filter(technicien=tech) if tech else Intervention.objects.none()
 
@@ -464,12 +445,10 @@ def intervention_create(request):
             intervention.created_by = request.user
             intervention.save()
 
-            # Analyse description pour log
             analyse = analyser_description(intervention.description)
-            log_activity(request.user, "Création intervention", 
+            log_activity(request.user, "Création intervention",
                         f"#{intervention.id} — priorité suggérée: {analyse['priorite_suggeree']}")
 
-            # Notification si technicien assigné
             if intervention.technicien:
                 notifier_assignation(intervention)
 
@@ -483,16 +462,13 @@ def intervention_create(request):
         'form': form,
         'title': 'Nouvelle intervention',
         'analyse': analyse,
+        'show_scoring': True,
     })
 
 @login_required
 def intervention_edit(request, pk):
     intervention = get_object_or_404(Intervention, pk=pk)
 
-    # `full_edit` = a le droit de modifier n'importe quelle intervention
-    # (permission de rôle). Sinon, doit être LE technicien assigné à
-    # CETTE intervention précise (règle object-level, indépendante des
-    # rôles) pour obtenir un formulaire restreint.
     full_edit = request.user.has_perm('core.change_intervention')
     tech = get_technician_profile(request.user)
     is_owner = tech is not None and intervention.technicien_id == tech.id
@@ -543,12 +519,7 @@ def intervention_delete(request, pk):
 @perm_required('core.change_intervention')
 def intervention_assign_technician(request, pk):
     """
-    Assigne (ou réassigne) explicitement un technicien à une intervention,
-    choisi librement par l'agent bureau — via le formulaire de sélection
-    (n'importe quel technicien) ou en un clic sur une des recommandations
-    du moteur de scoring. Action dédiée, séparée du formulaire complet
-    d'édition, pour rester accessible en un clic depuis la fiche
-    intervention.
+    Assigne (ou réassigne) explicitement un technicien à une intervention.
     """
     intervention = get_object_or_404(Intervention, pk=pk)
 
@@ -561,13 +532,6 @@ def intervention_assign_technician(request, pk):
         technicien = form.cleaned_data['technicien']
         intervention.technicien = technicien
 
-        # Une intervention encore "en attente" (jamais assignée, jamais
-        # planifiée) passe automatiquement à "planifiée" dès qu'on lui
-        # donne un technicien — c'est la définition même du statut
-        # "planifiée" (cf. Intervention.est_en_retard, qui se base
-        # dessus). On ne touche PAS au statut si l'intervention est déjà
-        # en_cours/terminee/annulee : une réassignation en cours de route
-        # ne doit jamais faire régresser ou effacer un statut plus avancé.
         update_fields = ['technicien']
         if intervention.statut == 'en_attente':
             intervention.statut = 'planifiee'
@@ -596,12 +560,7 @@ def intervention_assign_technician(request, pk):
 
 @login_required
 def intervention_start(request, pk):
-    """
-    Démarrage en un clic par le technicien assigné (ou un rôle avec droit
-    d'édition complet) — passe le statut à 'en_cours'. Le modèle
-    (Intervention.save()) remplit automatiquement `date_debut` à ce
-    passage, donc aucune logique de date à dupliquer ici.
-    """
+    """Démarrage en un clic par le technicien assigné — passe le statut à 'en_cours'."""
     intervention = get_object_or_404(Intervention, pk=pk)
 
     if not user_can_edit_intervention(request.user, intervention):
@@ -626,13 +585,7 @@ def intervention_start(request, pk):
 
 @login_required
 def intervention_finish(request, pk):
-    """
-    Fin en un clic par le technicien assigné (ou un rôle avec droit
-    d'édition complet) — passe le statut à 'terminee'. Comme pour le
-    démarrage, `date_fin` est auto-rempli par le modèle. Notifie le
-    créateur de l'intervention, comme le fait déjà `intervention_edit`
-    pour ce même changement de statut.
-    """
+    """Fin en un clic par le technicien assigné — passe le statut à 'terminee'."""
     intervention = get_object_or_404(Intervention, pk=pk)
 
     if not user_can_edit_intervention(request.user, intervention):
@@ -655,11 +608,41 @@ def intervention_finish(request, pk):
 
     return redirect('intervention_detail', pk=intervention.pk)
 
+
+@login_required
+def intervention_scoring(request):
+    """Scoring en direct pour le formulaire de création/édition d'intervention."""
+    if not (request.user.has_perm('core.add_intervention') or request.user.has_perm('core.change_intervention')):
+        return HttpResponseForbidden()
+
+    type_intervention = request.GET.get('type_intervention', 'maintenance')
+
+    def _to_float(val):
+        try:
+            return float(val)
+        except (TypeError, ValueError):
+            return None
+
+    intervention_temp = Intervention(
+        type_intervention=type_intervention,
+        latitude=_to_float(request.GET.get('latitude')),
+        longitude=_to_float(request.GET.get('longitude')),
+    )
+
+    scores = recommander_technicien(intervention_temp)[:5]
+    return JsonResponse({
+        'techniciens': [{
+            'id': tech.id,
+            'nom': f'{tech.prenom} {tech.nom}',
+            'specialites': tech.specialites,
+            'disponible': tech.disponible,
+            'score': score,
+        } for tech, score in scores]
+    })
+
+
 @login_required
 def intervention_detail(request, pk):
-    # Vue interne complète (édition, tâches, pièces, incidents...). Un
-    # client externe est renvoyé vers l'équivalent en lecture seule du
-    # portail, qui vérifie lui-même qu'il s'agit bien de SON intervention.
     if is_portal_client(request.user):
         return redirect('client_portal_intervention_detail', pk=pk)
 
@@ -673,10 +656,6 @@ def intervention_detail(request, pk):
     pieces = intervention.interventionpiece_set.select_related('piece').all()
     incidents = intervention.incidents.select_related('signale_par').all()
 
-    # Recommandation de technicien (proposée tant que l'assignation est
-    # modifiable) — réservée à ceux qui peuvent réellement assigner un
-    # technicien. Le moteur suggère un top 3, mais l'agent reste libre de
-    # choisir n'importe quel autre technicien via assign_form ci-dessous.
     can_assign = request.user.has_perm('core.change_intervention')
     recommandations = []
     assign_form = None
@@ -684,10 +663,8 @@ def intervention_detail(request, pk):
         recommandations = recommander_technicien(intervention)[:3]
         assign_form = InterventionAssignForm(initial={'technicien': intervention.technicien_id})
 
-    # Analyse description
     analyse = analyser_description(intervention.description)
 
-    # Formulaires inline
     task_form = TaskForm()
     message_form = MessageForm()
     piece_form = InterventionPieceForm()
@@ -717,13 +694,6 @@ def intervention_detail(request, pk):
 # ───────────────────────────────────────────────
 
 def _verifier_acces_intervention(request, intervention):
-    """
-    Vérifie que l'utilisateur a le droit d'AGIR (écrire) sur CETTE
-    intervention : gestion globale (permission) ou technicien assigné
-    (propriété de l'objet). Plus strict que la simple visibilité — un
-    rôle de supervision en lecture seule (ex. Manager) ne passe pas ce
-    contrôle, voir `user_can_edit_intervention`.
-    """
     if not user_can_edit_intervention(request.user, intervention):
         return HttpResponseForbidden("Vous ne pouvez agir que sur vos interventions.")
     return None
@@ -736,12 +706,6 @@ def task_create(request, intervention_pk):
     if denied:
         return denied
     if request.method == 'POST':
-        # Le formulaire d'ajout rapide (onglet Tâches) ne soumet que
-        # `titre` — `statut` a un default='a_faire' sur le modèle, mais
-        # un ModelForm le rend quand même required=True côté validation.
-        # Sans cette valeur par défaut, form.is_valid() échouait
-        # silencieusement (aucune erreur affichée) et la tâche n'était
-        # jamais créée : c'était le bug du bouton "Ajouter".
         data = request.POST.copy()
         data.setdefault('statut', 'a_faire')
         form = TaskForm(data)
@@ -757,20 +721,11 @@ def task_create(request, intervention_pk):
     return redirect('intervention_detail', pk=intervention_pk)
 
 
-# Ordre de cycle utilisé par le clic rapide sur le badge de statut
-# (onglet Tâches) : à_faire → en_cours → terminée → à_faire ...
 TASK_STATUT_CYCLE = {'a_faire': 'en_cours', 'en_cours': 'terminee', 'terminee': 'a_faire'}
 
 
 @login_required
 def task_update_status(request, pk):
-    """
-    Fait avancer le statut d'une tâche d'un cran (clic sur le badge dans
-    l'onglet Tâches), ou le fixe explicitement si `statut` est fourni
-    dans le POST (utilisé par un éventuel menu déroulant). Même règle
-    d'accès que les autres actions sur l'intervention : seul l'agent
-    bureau (change_intervention) ou le technicien assigné peut modifier.
-    """
     task = get_object_or_404(Task, pk=pk)
     denied = _verifier_acces_intervention(request, task.intervention)
     if denied:
@@ -790,14 +745,6 @@ def task_update_status(request, pk):
 
 @login_required
 def message_create(request, intervention_pk):
-    """
-    Poste un message sur une intervention. Volontairement basé sur
-    `user_can_message_intervention` (accès en lecture + permission
-    add_message) et non sur `_verifier_acces_intervention` (accès en
-    écriture) : un client concerné doit pouvoir écrire à l'agent/
-    technicien sans avoir aucun droit de gestion sur l'intervention.
-    Redirige vers la bonne vue de détail selon le type de compte.
-    """
     intervention = get_object_or_404(Intervention, pk=intervention_pk)
     if not user_can_message_intervention(request.user, intervention):
         return HttpResponseForbidden("Vous n'êtes pas autorisé à écrire sur cette intervention.")
@@ -845,7 +792,6 @@ def intervention_add_piece(request, intervention_pk):
 
 @login_required
 def incident_create(request, intervention_pk):
-    """Signalement d'un incident rencontré sur le terrain (suivi temps réel)."""
     intervention = get_object_or_404(Intervention, pk=intervention_pk)
     denied = _verifier_acces_intervention(request, intervention)
     if denied:
@@ -867,7 +813,6 @@ def incident_create(request, intervention_pk):
 
 @login_required
 def incident_resolve(request, pk):
-    """Marque un incident comme résolu (ou le rouvre)."""
     incident = get_object_or_404(Incident, pk=pk)
     denied = _verifier_acces_intervention(request, incident.intervention)
     if denied:
@@ -886,18 +831,9 @@ def incident_resolve(request, pk):
 # ───────────────────────────────────────────────
 # Portail client
 # ───────────────────────────────────────────────
-# Espace dédié aux comptes clients externes (Client.user renseigné).
-# Volontairement séparé des vues internes (intervention_list,
-# intervention_detail...) plutôt que d'y ajouter des branches "if
-# client" partout : un client ne voit qu'un sous-ensemble réduit de
-# l'information (pas de tâches internes, pas de recommandations de
-# technicien, pas de coût des pièces, pas d'actions de gestion), et
-# séparer les vues évite qu'un futur champ ajouté à l'écran interne ne
-# se retrouve exposé au client par erreur.
 
 @login_required
 def client_portal_dashboard(request):
-    """Tableau de bord du portail client : ses interventions, tous statuts confondus."""
     client = get_client_profile(request.user)
     if client is None:
         return HttpResponseForbidden("Votre compte n'est lié à aucune fiche client.")
@@ -915,11 +851,6 @@ def client_portal_dashboard(request):
 
 @login_required
 def client_portal_intervention_detail(request, pk):
-    """
-    Détail en lecture seule d'une intervention, pour le client concerné
-    uniquement, avec fil de messages (le client peut écrire — voir
-    `message_create`, qui pointe ici pour un compte client).
-    """
     intervention = get_object_or_404(Intervention, pk=pk)
     client = get_client_profile(request.user)
 
@@ -929,11 +860,47 @@ def client_portal_intervention_detail(request, pk):
     messages_list = intervention.messages.select_related('expediteur').all()
     message_form = MessageForm()
 
+    evaluation_form = None
+    if intervention.statut == 'terminee' and not hasattr(intervention, 'evaluation_client'):
+        evaluation_form = ClientEvaluationForm()
+
     return render(request, 'core/client_portal_intervention_detail.html', {
         'intervention': intervention,
         'messages_list': messages_list,
         'message_form': message_form,
+        'evaluation_form': evaluation_form,
     })
+
+
+@login_required
+def client_evaluation_create(request, pk):
+    """
+    Le client note l'intervention (/5) et le technicien (/100) une fois
+    l'intervention terminée — une seule fois. Réservé au client concerné.
+    """
+    intervention = get_object_or_404(Intervention, pk=pk)
+    client = get_client_profile(request.user)
+
+    if client is None or intervention.client_id != client.id:
+        return HttpResponseForbidden("Cette intervention ne concerne pas votre compte.")
+    if intervention.statut != 'terminee':
+        django_messages.error(request, "L'intervention doit être terminée avant de pouvoir être évaluée.")
+        return redirect('client_portal_intervention_detail', pk=pk)
+    if hasattr(intervention, 'evaluation_client'):
+        django_messages.error(request, "Cette intervention a déjà été évaluée.")
+        return redirect('client_portal_intervention_detail', pk=pk)
+
+    if request.method == 'POST':
+        form = ClientEvaluationForm(request.POST)
+        if form.is_valid():
+            evaluation = form.save(commit=False)
+            evaluation.intervention = intervention
+            evaluation.save()
+            log_activity(request.user, "Évaluation client", f"Intervention #{pk}")
+            django_messages.success(request, "Merci pour votre évaluation.")
+        else:
+            django_messages.error(request, "Merci de vérifier les notes saisies (intervention /5, technicien entre 0 et 100).")
+    return redirect('client_portal_intervention_detail', pk=pk)
 
 
 # ───────────────────────────────────────────────
@@ -1035,9 +1002,6 @@ def stock_movement_create(request):
 
 @login_required
 def report_list(request):
-    # Un client externe a sa propre liste de rapports, intégrée au
-    # portail (chaque intervention y affiche directement son rapport) :
-    # pas besoin de dupliquer une liste ici.
     if is_portal_client(request.user):
         return redirect('client_portal_dashboard')
 
@@ -1078,7 +1042,6 @@ def report_create(request, intervention_pk):
             report.save()
             report.generer_complet()
 
-            # Si intervention terminée, notifier
             if intervention.statut == 'terminee':
                 notifier_terminaison(intervention)
 
@@ -1120,7 +1083,6 @@ def report_edit(request, pk):
 def report_pdf(request, pk):
     report = get_object_or_404(Report, pk=pk)
 
-    # Même règle d'accès que report_detail/report_edit
     if not user_can_access_intervention(request.user, report.intervention):
         return HttpResponseForbidden()
 
@@ -1143,40 +1105,33 @@ def report_pdf(request, pk):
 
 
 # ───────────────────────────────────────────────
-# Statistiques (page dédiée, pas dupliquée du dashboard)
+# Statistiques
 # ───────────────────────────────────────────────
 
 @perm_required('core.view_statistics')
 def statistics(request):
-    # Durée moyenne des interventions terminées
     terminees = Intervention.objects.filter(statut='terminee')
     durees = [i.duree_reelle() for i in terminees if i.duree_reelle()]
     duree_moyenne = sum(durees) / len(durees) if durees else 0
 
-    # Répartition par type
     repartition_type = Intervention.objects.values('type_intervention').annotate(
         count=Count('id')
     ).order_by('-count')
 
-    # Répartition par statut
     repartition_statut = Intervention.objects.values('statut').annotate(
         count=Count('id')
     )
 
-    # Jour de pic d'activité
     pic_jour = Intervention.objects.annotate(
         jour=TruncDate('date_creation')
     ).values('jour').annotate(count=Count('id')).order_by('-count')[:7]
 
-    # Satisfaction moyenne
     satisfaction = Report.objects.exclude(satisfaction_client__isnull=True).aggregate(
         avg=Avg('satisfaction_client')
     )['avg'] or 0
 
-    # Valeur totale du stock
     stock_value = sum(p.valeur_stock() for p in SparePart.objects.all())
 
-    # Alertes stock
     alertes_stock = SparePart.objects.filter(
         quantite_stock__lte=F('quantite_minimale')
     )
@@ -1201,9 +1156,6 @@ def statistics(request):
 
 @login_required
 def search(request):
-    # Recherche globale non filtrée par propriétaire : jamais exposée à
-    # un compte client externe (fuite potentielle vers les données
-    # d'autres clients).
     if is_portal_client(request.user):
         return redirect('client_portal_dashboard')
     q = request.GET.get('q', '')
@@ -1278,15 +1230,9 @@ def export_stock_csv(request):
 
 @login_required
 def recherche_globale(request):
-    """Recherche globale pour la barre du top bar — interroge interventions,
-    clients, techniciens et pièces en une fois, limité à 5 résultats par
-    catégorie pour rester lisible dans le menu déroulant."""
+    """Recherche globale pour la barre du top bar."""
     data = {'interventions': [], 'clients': [], 'techniciens': [], 'pieces': []}
 
-    # Même règle que la vue `search` : un compte portail client ne doit
-    # jamais voir les référentiels internes (autres clients, techniciens,
-    # interventions) via cet endpoint — sinon la recherche globale devient
-    # une fuite vers les données d'autres clients.
     if is_portal_client(request.user):
         return JsonResponse(data)
 

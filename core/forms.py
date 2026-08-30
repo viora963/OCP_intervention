@@ -2,7 +2,7 @@ from django import forms
 from django.contrib.auth.forms import AuthenticationForm
 from .models import (
     Client, Technician, SparePart, Intervention,
-    Task, Report, Message, StockMovement, Incident
+    Task, Report, Message, StockMovement, Incident,ClientEvaluation
 )
 
 
@@ -225,4 +225,25 @@ class IncidentForm(forms.ModelForm):
             'titre': forms.TextInput(attrs={'class': 'form-input', 'placeholder': "Ex: Panne électrique imprévue"}),
             'description': forms.Textarea(attrs={'class': 'form-textarea', 'rows': 2}),
             'gravite': forms.Select(attrs={'class': 'form-select'}),
+        }
+
+class ClientEvaluationForm(forms.ModelForm):
+    """Formulaire d'évaluation client (note intervention /5 + technicien /100)."""
+    class Meta:
+        model = ClientEvaluation
+        fields = ['note_intervention', 'note_technicien', 'commentaire']
+        widgets = {
+            'note_intervention': forms.RadioSelect(),
+            'note_technicien': forms.NumberInput(attrs={
+                'class': 'form-input', 'min': 0, 'max': 100, 'placeholder': 'Ex : 85'
+            }),
+            'commentaire': forms.Textarea(attrs={
+                'class': 'form-textarea', 'rows': 3,
+                'placeholder': "Un commentaire sur l'intervention (optionnel)"
+            }),
+        }
+        labels = {
+            'note_intervention': "Note de l'intervention",
+            'note_technicien': "Note du technicien",
+            'commentaire': "Commentaire",
         }

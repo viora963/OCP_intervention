@@ -1,14 +1,14 @@
 {% extends 'core/base.html' %}
 {% block title %}{{ title }} — OCP{% endblock %}
 {% block content %}
-<div class="animate-fade-in max-w-3xl mx-auto">
+<div class="animate-fade-in {% if show_scoring %}max-w-6xl{% else %}max-w-3xl{% endif %} mx-auto" x-data="technicienScoring()" x-init="init()">
     <a href="{% url 'intervention_list' %}" class="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-ocp-600 transition mb-4">
         <i class="ph ph-arrow-left"></i> Retour
     </a>
     <h1 class="text-2xl font-bold text-slate-900 mb-6">{{ title }}</h1>
 
     {% if analyse and analyse.equipements %}
-    <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6 flex items-start gap-3">
+    <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6 flex items-start gap-3 {% if show_scoring %}lg:max-w-none{% endif %}">
         <i class="ph ph-lightbulb text-blue-500 text-lg shrink-0 mt-0.5"></i>
         <div class="text-sm text-blue-800">
             <p><strong>Équipements détectés :</strong> {{ analyse.equipements|join:", " }}</p>
@@ -17,27 +17,144 @@
     </div>
     {% endif %}
 
-    <div class="card">
-        <form method="post" class="space-y-5">
-            {% csrf_token %}
-            {% for field in form %}
-            <div class="form-group">
-                <label class="flex items-center gap-1.5">
-                    {{ field.label }}
-                    {% if field.field.required %}<span class="text-red-500">*</span>{% endif %}
-                </label>
-                {{ field }}
-                {% if field.help_text %}<p class="text-xs text-slate-400 mt-1">{{ field.help_text }}</p>{% endif %}
-                {% if field.errors %}<p class="text-sm text-red-600 mt-1 flex items-center gap-1"><i class="ph ph-warning-circle"></i> {{ field.errors.0 }}</p>{% endif %}
+    <div class="{% if show_scoring %}grid grid-cols-1 lg:grid-cols-3 gap-6{% endif %}">
+        <div class="card {% if show_scoring %}lg:col-span-2{% endif %}">
+            <form method="post" class="space-y-5">
+                {% csrf_token %}
+                {% for field in form %}
+                <div class="form-group">
+                    <label class="flex items-center gap-1.5">
+                        {{ field.label }}
+                        {% if field.field.required %}<span class="text-red-500">*</span>{% endif %}
+                    </label>
+                    {{ field }}
+                    {% if field.help_text %}<p class="text-xs text-slate-400 mt-1">{{ field.help_text }}</p>{% endif %}
+                    {% if field.errors %}<p class="text-sm text-red-600 mt-1 flex items-center gap-1"><i class="ph ph-warning-circle"></i> {{ field.errors.0 }}</p>{% endif %}
+                </div>
+                {% endfor %}
+                <div class="flex gap-3 pt-4 border-t border-slate-100">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="ph ph-floppy-disk"></i> Enregistrer
+                    </button>
+                    <a href="{% url 'intervention_list' %}" class="btn btn-secondary">Annuler</a>
+                </div>
+            </form>
+        </div>
+
+        {% if show_scoring %}
+        <!-- Panneau de scoring — recalculé en direct (débounce 400ms) à
+             chaque changement de type d'intervention ou de coordonnées,
+             AVANT que l'intervention n'existe en base (voir
+             views.intervention_scoring). -->
+        <div class="card bg-gradient-to-br from-ocp-50 to-emerald-50/50 border-ocp-100 h-fit lg:sticky lg:top-20">
+            <h2 class="text-sm font-bold text-ocp-900 mb-1 flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                Techniciens recommandés
+            </h2>
+            <p class="text-xs text-ocp-600 mb-3">Scoring mis à jour automatiquement selon le type d'intervention et la localisation.</p>
+
+            <div x-show="loading" class="text-xs text-gray-400 py-3 text-center">Calcul en cours…</div>
+
+            <template x-if="!loading && techniciens.length === 0">
+                <p class="text-xs text-gray-400 py-3 text-center">Aucun technicien disponible pour le moment.</p>
+            </template>
+
+            <div x-show="!loading" class="space-y-0">
+                <template x-for="(t, index) in techniciens" :key="t.id">
+                    <div class="flex items-center justify-between py-2.5 border-b border-ocp-100/50 last:border-0">
+                        <div class="min-w-0">
+                            <div class="flex items-center gap-1.5">
+                                <span x-show="index === 0" class="text-amber-500 text-xs" title="Meilleur score">★</span>
+                                <span class="font-medium text-gray-900 text-sm" x-text="t.nom"></span>
+                            </div>
+                            <p class="text-xs text-gray-500 truncate" x-text="t.specialites || 'Aucune spécialité renseignée'"></p>
+                            <span x-show="!t.disponible" class="text-[10px] text-red-500 font-medium">Actuellement indisponible</span>
+                        </div>
+                        <div class="shrink-0 ml-3 flex items-center gap-2">
+                            <span class="text-sm font-bold text-ocp-700" x-text="t.score"></span><span class="text-xs text-ocp-400">/100</span>
+                            <button type="button" @click="choisir(t.id)"
+                                    :class="selectedId === t.id ? 'bg-ocp-600 text-white' : 'btn-secondary'"
+                                    class="text-xs py-1 px-2 rounded-lg font-medium transition"
+                                    x-text="selectedId === t.id ? 'Choisi' : 'Choisir'"></button>
+                        </div>
+                    </div>
+                </template>
             </div>
-            {% endfor %}
-            <div class="flex gap-3 pt-4 border-t border-slate-100">
-                <button type="submit" class="btn btn-primary">
-                    <i class="ph ph-floppy-disk"></i> Enregistrer
-                </button>
-                <a href="{% url 'intervention_list' %}" class="btn btn-secondary">Annuler</a>
-            </div>
-        </form>
+        </div>
+        {% endif %}
     </div>
 </div>
+{% endblock %}
+
+{% block extra_body %}
+{% if show_scoring %}
+<script>
+function technicienScoring() {
+    return {
+        techniciens: [],
+        loading: false,
+        selectedId: null,
+        _debounce: null,
+
+        init() {
+            const typeField = document.getElementById('id_type_intervention');
+            const latField = document.getElementById('id_latitude');
+            const lonField = document.getElementById('id_longitude');
+            const techField = document.getElementById('id_technicien');
+
+            if (techField) {
+                this.selectedId = techField.value ? parseInt(techField.value, 10) : null;
+            }
+
+            // Écoute directement les champs du formulaire Django rendus par
+            // {{ field }} — ils ne sont pas dans ce composant Alpine, donc
+            // on s'y accroche par ID plutôt que via x-model.
+            [typeField, latField, lonField].forEach((el) => {
+                if (el) el.addEventListener('input', () => this.onFieldChange());
+            });
+
+            // Premier calcul immédiat (le type a une valeur par défaut).
+            this.fetchScoring();
+        },
+
+        onFieldChange() {
+            clearTimeout(this._debounce);
+            this._debounce = setTimeout(() => this.fetchScoring(), 400);
+        },
+
+        async fetchScoring() {
+            const typeField = document.getElementById('id_type_intervention');
+            const latField = document.getElementById('id_latitude');
+            const lonField = document.getElementById('id_longitude');
+
+            const params = new URLSearchParams();
+            if (typeField && typeField.value) params.set('type_intervention', typeField.value);
+            if (latField && latField.value) params.set('latitude', latField.value);
+            if (lonField && lonField.value) params.set('longitude', lonField.value);
+
+            this.loading = true;
+            try {
+                const res = await fetch(`{% url 'intervention_scoring' %}?${params.toString()}`, {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                });
+                if (!res.ok) return;
+                const data = await res.json();
+                this.techniciens = data.techniciens;
+            } catch (e) {
+                console.error('Scoring technicien : échec', e);
+            } finally {
+                this.loading = false;
+            }
+        },
+
+        choisir(techId) {
+            const techField = document.getElementById('id_technicien');
+            if (!techField) return;
+            techField.value = techId;
+            this.selectedId = techId;
+        },
+    }
+}
+</script>
+{% endif %}
 {% endblock %}

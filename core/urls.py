@@ -33,6 +33,7 @@ urlpatterns = [
     path('interventions/<int:pk>/assigner/', views.intervention_assign_technician, name='intervention_assign_technician'),
     path('interventions/<int:pk>/demarrer/', views.intervention_start, name='intervention_start'),
     path('interventions/<int:pk>/terminer/', views.intervention_finish, name='intervention_finish'),
+    path('interventions/scoring/', views.intervention_scoring, name='intervention_scoring'),
 
     # Actions inline
     path('interventions/<int:intervention_pk>/taches/creer/', views.task_create, name='task_create'),
@@ -45,6 +46,7 @@ urlpatterns = [
     # Portail client
     path('portail/', views.client_portal_dashboard, name='client_portal_dashboard'),
     path('portail/interventions/<int:pk>/', views.client_portal_intervention_detail, name='client_portal_intervention_detail'),
+    path('portail/interventions/<int:pk>/evaluer/', views.client_evaluation_create, name='client_evaluation_create'),
 
     # Stock
     path('stock/', views.sparepart_list, name='sparepart_list'),

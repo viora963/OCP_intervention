@@ -1,7 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User
 from django.utils import timezone
-
+from django.core.validators import MinValueValidator, MaxValueValidator
 
 class Client(models.Model):
     # user est optionnel : un Client existe d'abord comme fiche gérée par
@@ -443,3 +443,50 @@ class Incident(models.Model):
         if not self.resolu:
             self.date_resolution = None
         super().save(*args, **kwargs)
+
+class ClientEvaluation(models.Model):
+    """
+    Évaluation laissée par le client depuis son portail, une fois
+    l'intervention terminée. Volontairement séparée de `Report`
+    (document interne rédigé par l'équipe) : le client ne doit jamais
+    pouvoir écrire dans un champ qui vit dans un objet géré par le staff.
+    """
+    intervention = models.OneToOneField(
+        Intervention,
+        on_delete=models.CASCADE,
+        related_name='evaluation_client',
+        verbose_name="Intervention"
+    )
+    note_intervention = models.IntegerField(
+        choices=[(i, i) for i in range(1, 6)],
+        verbose_name="Note de l'intervention (/5)"
+    )
+    note_technicien = models.PositiveSmallIntegerField(
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+        verbose_name="Note du technicien (/100)"
+    )
+    commentaire = models.TextField(blank=True, verbose_name="Commentaire")
+    date_evaluation = models.DateTimeField(auto_now_add=True, verbose_name="Date d'évaluation")
+
+    class Meta:
+        ordering = ['-date_evaluation']
+        verbose_name = "Évaluation client"
+        verbose_name_plural = "Évaluations clients"
+
+    def __str__(self):
+        return f"Évaluation — {self.intervention} ({self.note_intervention}/5)"
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        # Recalcule la moyenne du technicien à chaque évaluation — alimente
+        # directement le moteur de scoring (recommander_technicien), déjà
+        # sur une échelle /100 identique à note_technicien.
+        tech = self.intervention.technicien
+        if tech:
+            from django.db.models import Avg
+            moyenne = ClientEvaluation.objects.filter(
+                intervention__technicien=tech
+            ).aggregate(m=Avg('note_technicien'))['m']
+            if moyenne is not None:
+                tech.note_moyenne = round(moyenne, 1)
+                tech.save(update_fields=['note_moyenne'])
