@@ -9,6 +9,7 @@ les implémentent de manière honnête et explicable ligne par ligne.
 """
 
 import math
+import re
 from django.core.mail import send_mail
 from django.conf import settings
 from .models import Technician, ActivityLog
@@ -61,7 +62,10 @@ def recommander_technicien(intervention):
         score += exp_score
 
         # 4. Proximité géographique (15%)
-        if lat_i and lon_i and tech.latitude and tech.longitude:
+        if (
+            lat_i is not None and lon_i is not None
+            and tech.latitude is not None and tech.longitude is not None
+        ):
             dist = haversine(lat_i, lon_i, tech.latitude, tech.longitude)
             if dist < 5:
                 score += 15.0
@@ -127,8 +131,14 @@ def analyser_description(description):
     """
     desc_lower = (description or "").lower()
 
+    def _contient_mot(mot, texte):
+        """Recherche par mot entier (\\b) plutôt que par sous-chaîne, pour
+        éviter les faux positifs sur les tokens courts (ex: 'hs' ne doit
+        pas matcher à l'intérieur d'un autre mot)."""
+        return re.search(r'\b' + re.escape(mot) + r'\b', texte) is not None
+
     # Comptage des mots d'urgence
-    score_urgence = sum(1 for mot in MOTS_URGENCE if mot in desc_lower)
+    score_urgence = sum(1 for mot in MOTS_URGENCE if _contient_mot(mot, desc_lower))
 
     if score_urgence >= 3:
         priorite = 'critique'
@@ -140,7 +150,7 @@ def analyser_description(description):
         priorite = 'basse'
 
     # Détection équipements
-    equipements = [eq for eq in MOTS_EQUIPEMENT if eq in desc_lower]
+    equipements = [eq for eq in MOTS_EQUIPEMENT if _contient_mot(eq, desc_lower)]
 
     return {
         'priorite_suggeree': priorite,

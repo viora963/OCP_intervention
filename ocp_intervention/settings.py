@@ -7,11 +7,20 @@ import os
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = 'django-insecure-change-me-in-production-7x9k2m4n6p8q0r1s3t5u7v9w0y2z4'
+# En développement, ces valeurs par défaut restent valables tel quel.
+# En production, définir les variables d'environnement SECRET_KEY, DEBUG
+# et ALLOWED_HOSTS (ex: dans un fichier .env non versionné) — ne jamais
+# déployer avec la clé par défaut ci-dessous ni DEBUG=True.
+SECRET_KEY = os.environ.get(
+    'SECRET_KEY',
+    'django-insecure-change-me-in-production-7x9k2m4n6p8q0r1s3t5u7v9w0y2z4'
+)
 
-DEBUG = True
+DEBUG = os.environ.get('DEBUG', 'True') == 'True'
 
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = [
+    h.strip() for h in os.environ.get('ALLOWED_HOSTS', '*').split(',') if h.strip()
+]
 
 INSTALLED_APPS = [
     'django.contrib.admin',
