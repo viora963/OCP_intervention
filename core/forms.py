@@ -88,6 +88,37 @@ class SparePartForm(forms.ModelForm):
         }
 
 
+def _date_planification_field():
+    """
+    Construit le champ `date_planification` partagé par `InterventionForm`
+    et `InterventionTechnicianForm`. Déclaré explicitement (plutôt que
+    laissé à Meta.widgets) : dans le contexte de l'admin Django,
+    ModelAdmin.get_form() passe son propre formfield_callback
+    (formfield_for_dbfield) à modelform_factory, qui ignore Meta.widgets
+    pour les champs non déclarés sur la classe et transforme un
+    DateTimeField en SplitDateTimeField (AdminSplitDateTime). Résultat :
+    le widget datetime-local est silencieusement remplacé ET
+    form.changed_data plante (SplitDateTimeField.has_changed() reçoit une
+    valeur de champ non-liste). Un champ déclaré explicitement sur la
+    classe est toujours prioritaire sur le formfield_callback, donc ceci
+    fixe le rendu ET le crash dans les deux contextes (admin et vues
+    applicatives).
+
+    Une fonction plutôt qu'une instance de Field partagée : une instance
+    de champ Django ne doit jamais être réutilisée telle quelle entre
+    deux classes de formulaire (elle est mutée par le binding), donc
+    chaque formulaire a besoin de sa propre instance — cette fonction
+    évite simplement de dupliquer la définition (widget + format + commentaire).
+    """
+    return forms.DateTimeField(
+        required=False,
+        widget=forms.DateTimeInput(
+            attrs={'class': 'form-input', 'type': 'datetime-local'},
+            format='%Y-%m-%dT%H:%M'
+        ),
+    )
+
+
 # Transitions de statut autorisées depuis le formulaire générique
 # (création/édition). Les boutons dédiés "Démarrer" / "Terminer" (vues
 # intervention_start / intervention_finish) appliquent des règles plus
@@ -138,24 +169,7 @@ class StatutTransitionMixin:
 
 
 class InterventionForm(StatutTransitionMixin, forms.ModelForm):
-    # Déclaré explicitement (plutôt que laissé à Meta.widgets) : dans le
-    # contexte de l'admin Django, ModelAdmin.get_form() passe son propre
-    # formfield_callback (formfield_for_dbfield) à modelform_factory, qui
-    # ignore Meta.widgets pour les champs non déclarés sur la classe et
-    # transforme un DateTimeField en SplitDateTimeField (AdminSplitDateTime).
-    # Résultat : le widget datetime-local ici est silencieusement remplacé
-    # ET form.changed_data plante (SplitDateTimeField.has_changed() reçoit
-    # une valeur de champ non-liste). Un champ déclaré explicitement sur la
-    # classe est toujours prioritaire sur le formfield_callback, donc ceci
-    # fixe le rendu ET le crash dans les deux contextes (admin et vues
-    # applicatives) sans dupliquer la logique ailleurs.
-    date_planification = forms.DateTimeField(
-        required=False,
-        widget=forms.DateTimeInput(
-            attrs={'class': 'form-input', 'type': 'datetime-local'},
-            format='%Y-%m-%dT%H:%M'
-        ),
-    )
+    date_planification = _date_planification_field()
 
     class Meta:
         model = Intervention
@@ -179,15 +193,7 @@ class InterventionForm(StatutTransitionMixin, forms.ModelForm):
 
 class InterventionTechnicianForm(StatutTransitionMixin, forms.ModelForm):
     """Formulaire restreint pour les techniciens (pas de modification client/technicien)."""
-    # Voir le commentaire équivalent dans InterventionForm ci-dessus — même
-    # raison (compat admin), même fix.
-    date_planification = forms.DateTimeField(
-        required=False,
-        widget=forms.DateTimeInput(
-            attrs={'class': 'form-input', 'type': 'datetime-local'},
-            format='%Y-%m-%dT%H:%M'
-        ),
-    )
+    date_planification = _date_planification_field()
 
     class Meta:
         model = Intervention

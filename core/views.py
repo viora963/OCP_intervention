@@ -42,6 +42,33 @@ from .permissions import (
 
 
 # ───────────────────────────────────────────────
+# Helpers partagés (pagination, retour d'erreur de formulaire)
+# ───────────────────────────────────────────────
+
+def _paginate(request, queryset, per_page):
+    """Pagination standard, utilisée par toutes les listes internes —
+    évite de répéter le trio Paginator / request.GET.get('page') /
+    get_page(page) dans chaque vue de liste."""
+    paginator = Paginator(queryset, per_page)
+    return paginator.get_page(request.GET.get('page'))
+
+
+def _flash_form_errors(request, form, action):
+    """Affiche les erreurs d'un formulaire invalide via django_messages.
+
+    Nécessaire pour toute vue qui REDIRIGE après un POST invalide (les
+    actions inline sur une intervention : tâche, pièce, incident...) —
+    contrairement à un formulaire pleine page qui se ré-affiche avec ses
+    erreurs inline, une redirection perd l'instance de formulaire, donc
+    sans ce message l'utilisateur ne voit jamais pourquoi rien ne s'est
+    passé.
+    """
+    django_messages.error(request, f"Impossible {action} : " + " ".join(
+        f"{f} : {', '.join(errs)}" for f, errs in form.errors.items()
+    ))
+
+
+# ───────────────────────────────────────────────
 # Authentification
 # ───────────────────────────────────────────────
 
@@ -263,9 +290,7 @@ def client_list(request):
         Q(nom__icontains=q) | Q(email__icontains=q) | Q(secteur__icontains=q)
     ).annotate(intervention_count=Count('interventions')).order_by('nom')
 
-    paginator = Paginator(clients, 20)
-    page = request.GET.get('page')
-    clients = paginator.get_page(page)
+    clients = _paginate(request, clients, 20)
 
     return render(request, 'core/client_list.html', {
         'clients': clients,
@@ -294,6 +319,7 @@ def client_edit(request, pk):
         if form.is_valid():
             form.save()
             log_activity(request.user, "Modification client", f"Client: {client.nom}")
+            django_messages.success(request, "Client modifié avec succès.")
             return redirect('client_list')
     else:
         form = ClientForm(instance=client)
@@ -334,9 +360,7 @@ def technician_list(request):
         Q(nom__icontains=q) | Q(prenom__icontains=q) | Q(specialites__icontains=q)
     ).annotate(intervention_count=Count('intervention_set')).order_by('nom', 'prenom')
 
-    paginator = Paginator(techs, 20)
-    page = request.GET.get('page')
-    techs = paginator.get_page(page)
+    techs = _paginate(request, techs, 20)
 
     return render(request, 'core/technician_list.html', {
         'technicians': techs,
@@ -351,6 +375,7 @@ def technician_create(request):
         if form.is_valid():
             tech = form.save()
             log_activity(request.user, "Création technicien", f"Technicien: {tech}")
+            django_messages.success(request, "Technicien créé avec succès.")
             return redirect('technician_list')
     else:
         form = TechnicianForm()
@@ -364,6 +389,7 @@ def technician_edit(request, pk):
         if form.is_valid():
             form.save()
             log_activity(request.user, "Modification technicien", f"Technicien: {tech}")
+            django_messages.success(request, "Technicien modifié avec succès.")
             return redirect('technician_list')
     else:
         form = TechnicianForm(instance=tech)
@@ -423,9 +449,7 @@ def intervention_list(request):
         interventions = interventions.filter(type_intervention=type_i)
 
     interventions = interventions.order_by('-date_creation')
-    paginator = Paginator(interventions, 15)
-    page = request.GET.get('page')
-    interventions = paginator.get_page(page)
+    interventions = _paginate(request, interventions, 15)
 
     return render(request, 'core/intervention_list.html', {
         'interventions': interventions,
@@ -715,9 +739,7 @@ def task_create(request, intervention_pk):
             task.save()
             log_activity(request.user, "Création tâche", f"Intervention #{intervention_pk}")
         else:
-            django_messages.error(request, "Impossible d'ajouter la tâche : " + " ".join(
-                f"{f}: {', '.join(errs)}" for f, errs in form.errors.items()
-            ))
+            _flash_form_errors(request, form, "d'ajouter la tâche")
     return redirect('intervention_detail', pk=intervention_pk)
 
 
@@ -787,6 +809,8 @@ def intervention_add_piece(request, intervention_pk):
                 django_messages.success(request, f"{piece.nom} x{quantite} consommé(e).")
             except ValueError as e:
                 django_messages.error(request, str(e))
+        else:
+            _flash_form_errors(request, form, "d'ajouter la pièce")
     return redirect('intervention_detail', pk=intervention_pk)
 
 
@@ -808,6 +832,8 @@ def incident_create(request, intervention_pk):
                 f"Intervention #{intervention_pk} — {incident.titre} ({incident.get_gravite_display()})"
             )
             django_messages.success(request, "Incident signalé.")
+        else:
+            _flash_form_errors(request, form, "de signaler l'incident")
     return redirect('intervention_detail', pk=intervention_pk)
 
 
@@ -920,9 +946,7 @@ def sparepart_list(request):
     if alertes:
         parts = parts.filter(quantite_stock__lte=F('quantite_minimale'))
 
-    paginator = Paginator(parts, 20)
-    page = request.GET.get('page')
-    parts = paginator.get_page(page)
+    parts = _paginate(request, parts, 20)
 
     return render(request, 'core/sparepart_list.html', {
         'parts': parts,
@@ -938,6 +962,7 @@ def sparepart_create(request):
         if form.is_valid():
             part = form.save()
             log_activity(request.user, "Création pièce", part.nom)
+            django_messages.success(request, "Pièce créée avec succès.")
             return redirect('sparepart_list')
     else:
         form = SparePartForm()
@@ -950,6 +975,8 @@ def sparepart_edit(request, pk):
         form = SparePartForm(request.POST, instance=part)
         if form.is_valid():
             form.save()
+            log_activity(request.user, "Modification pièce", part.nom)
+            django_messages.success(request, "Pièce modifiée avec succès.")
             return redirect('sparepart_list')
     else:
         form = SparePartForm(instance=part)
@@ -968,9 +995,7 @@ def stock_movement_list(request):
     if is_portal_client(request.user):
         return redirect('client_portal_dashboard')
     movements = StockMovement.objects.select_related('piece', 'utilisateur').all()
-    paginator = Paginator(movements, 25)
-    page = request.GET.get('page')
-    movements = paginator.get_page(page)
+    movements = _paginate(request, movements, 25)
     return render(request, 'core/stock_movement_list.html', {
         'movements': movements,
         'can_manage': request.user.has_perm('core.add_stockmovement')
@@ -1010,9 +1035,7 @@ def report_list(request):
         tech = get_technician_profile(request.user)
         reports = reports.filter(intervention__technicien=tech) if tech else Report.objects.none()
 
-    paginator = Paginator(reports, 20)
-    page = request.GET.get('page')
-    reports = paginator.get_page(page)
+    reports = _paginate(request, reports, 20)
     return render(request, 'core/report_list.html', {'reports': reports})
 
 @login_required
@@ -1074,6 +1097,8 @@ def report_edit(request, pk):
         if form.is_valid():
             form.save()
             report.generer_complet()
+            log_activity(request.user, "Modification rapport", f"Intervention #{report.intervention_id}")
+            django_messages.success(request, "Rapport modifié avec succès.")
             return redirect('report_detail', pk=report.pk)
     else:
         form = ReportForm(instance=report)
