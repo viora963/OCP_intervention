@@ -1244,7 +1244,12 @@ def recherche_globale(request):
     if len(q) < 2:
         return JsonResponse(data)
 
-    interventions = Intervention.objects.filter(
+    interventions_qs = Intervention.objects.all()
+    if not has_global_intervention_access(request.user):
+        tech = get_technician_profile(request.user)
+        interventions_qs = interventions_qs.filter(technicien=tech) if tech else Intervention.objects.none()
+
+    interventions = interventions_qs.filter(
         Q(titre__icontains=q) | Q(client__nom__icontains=q)
     ).select_related('client')[:5]
     data['interventions'] = [{
