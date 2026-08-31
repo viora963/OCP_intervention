@@ -2,7 +2,7 @@ from django.contrib import admin
 from .models import (
     Client, Technician, SparePart, Intervention,
     InterventionPiece, Task, Report, Message,
-    StockMovement, ActivityLog, Incident
+    StockMovement, ActivityLog, Incident, ClientEvaluation
 )
 
 
@@ -70,6 +70,13 @@ class TaskAdmin(admin.ModelAdmin):
 class ReportAdmin(admin.ModelAdmin):
     list_display = ['intervention', 'satisfaction_client', 'created_at']
     search_fields = ['intervention__titre']
+
+
+@admin.register(ClientEvaluation)
+class ClientEvaluationAdmin(admin.ModelAdmin):
+    list_display = ['intervention', 'note_intervention', 'note_technicien', 'date_evaluation']
+    list_filter = ['note_intervention']
+    search_fields = ['intervention__titre', 'commentaire']
 
 
 @admin.register(Message)

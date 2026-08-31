@@ -1042,8 +1042,12 @@ def report_create(request, intervention_pk):
             report.save()
             report.generer_complet()
 
-            if intervention.statut == 'terminee':
-                notifier_terminaison(intervention)
+            # NOTE : pas de notifier_terminaison() ici. Cette notification est
+            # envoyée une seule fois, au moment où l'intervention PASSE à
+            # 'terminee' (voir intervention_finish / intervention_edit). Le
+            # rapport est généralement rédigé après coup, une fois
+            # l'intervention déjà terminée — la renvoyer ici dupliquait
+            # l'email au créateur à chaque rédaction de rapport.
 
             log_activity(request.user, "Création rapport", f"Intervention #{intervention_pk}")
             return redirect('report_detail', pk=report.pk)

@@ -121,7 +121,7 @@ Modèles principaux (`core/models.py`) :
 Quelques choix documentés directement dans le code, résumés ici :
 
 - **`StockService` comme source unique de vérité** : `SparePart.quantite_stock` n'est jamais modifiable par un formulaire direct — tout passe par `StockService.adjust()`, avec un `StockMovement` créé à chaque changement pour garder un historique auditable.
-- **Pas de machine learning** : le scoring des techniciens et l'analyse de description reposent sur des règles métier explicites et pondérées (`ai_utils`/`utils.py`), pas sur un modèle entraîné — choix assumé et documenté dans le code (les champs nommés `ai_*` sont conservés pour compatibilité mais jamais présentés comme de l'IA à l'utilisateur).
+- **Pas de machine learning** : le scoring des techniciens et l'analyse de description reposent sur des règles métier explicites et pondérées (`utils.py`), pas sur un modèle entraîné — choix assumé et documenté dans le code (les champs nommés `ai_*` sont conservés pour compatibilité mais jamais présentés comme de l'IA à l'utilisateur).
 - **Suivi temps réel par polling, pas WebSockets** : simplicité de déploiement privilégiée pour un projet de stage ; rafraîchissement toutes les 8 secondes sur la page dédiée.
 - **Séparation `Report` / `ClientEvaluation`** : le rapport est un document interne rédigé par l'équipe, l'évaluation est un retour du client — deux modèles distincts pour ne jamais exposer un champ interne à une écriture cliente.
 - **Portail client isolé** : vues et permissions dédiées (`client_portal_*`), plutôt que des branches conditionnelles dans les vues internes — évite qu'un champ ajouté côté interne ne se retrouve exposé au client par erreur.
@@ -165,28 +165,49 @@ L'accès au portail client ou au tableau de bord technicien nécessite de lier u
 
 ```
 core/
-├── models.py            # Modèles de données
-├── views.py              # Logique métier / vues
-├── forms.py               # Formulaires Django
-├── urls.py                # Routes
-├── permissions.py         # RBAC + règles object-level
-├── services.py             # StockService (gestion du stock)
-├── utils.py                 # Scoring technicien, analyse de description, notifications
-├── ai_utils.py                # Moteur de règles (SmartAssignment, NLPProcessor, PredictiveAnalytics)
-├── reports.py                  # Génération PDF (reportlab / xhtml2pdf)
+├── models.py                    # Modèles de données
+├── views.py                     # Logique métier / vues
+├── forms.py                     # Formulaires Django
+├── urls.py                      # Routes
+├── permissions.py               # RBAC + règles object-level
+├── services.py                  # StockService (gestion du stock)
+├── utils.py                     # Scoring technicien, analyse de description, notifications
+│                                 #   (moteurs de règles explicites, sans machine learning —
+│                                 #   voir "Décisions d'architecture")
+├── context_processors.py        # Expose le rôle de l'utilisateur à tous les templates
+├── admin.py                     # Interface d'administration Django
+├── apps.py                      # Config de l'app ; synchronise les rôles après chaque migrate
+├── management/commands/
+│   ├── setup_roles.py           # Provisionne les Group/Permission (RBAC)
+│   └── seed_demo.py             # Jeu de données de démonstration
+├── migrations/                  # Migrations Django
 ├── static/core/
-│   ├── css/ocp-theme.css        # Thème visuel
-│   └── js/app.js                 # Composants Alpine partagés
+│   ├── css/                     # Thème visuel (Tailwind + surcharge custom)
+│   └── js/app.js                # Composants Alpine partagés
 └── templates/core/
-    ├── base.html                  # Layout principal
-    ├── _sidebar.html               # Navigation latérale
-    ├── dashboard.html               # Tableau de bord staff
-    ├── technician_dashboard.html     # Tableau de bord technicien
-    ├── suivi_temps_reel.html          # Suivi en temps réel
-    ├── intervention_*.html             # CRUD interventions
-    ├── client_portal_*.html             # Portail client
-    └── ...
+    ├── base.html                    # Layout principal (interne)
+    ├── base_public.html             # Layout public (login)
+    ├── _sidebar.html                 # Navigation latérale
+    ├── login.html                    # Connexion
+    ├── dashboard.html                 # Tableau de bord staff (agent bureau / manager)
+    ├── technician_dashboard.html       # Tableau de bord technicien
+    ├── suivi_temps_reel.html            # Suivi en temps réel (polling)
+    ├── statistics.html                   # Statistiques détaillées
+    ├── search_results.html                # Recherche globale
+    ├── activity_log.html                   # Journal d'activité
+    ├── client_*.html                        # CRUD clients
+    ├── technician_*.html                     # CRUD techniciens
+    ├── intervention_*.html                    # CRUD + détail interventions
+    ├── sparepart_*.html                        # CRUD pièces détachées
+    ├── stock_movement_*.html                    # Mouvements de stock
+    ├── report_*.html                             # Rapports (dont report_pdf.html pour l'export)
+    └── client_portal_*.html                       # Portail client (dashboard + détail intervention)
 ```
+
+> ⚠️ Le scoring technicien et l'analyse de description (voir plus bas) vivent tous les
+> deux dans `utils.py`. Il n'y a pas de module `ai_utils.py` séparé, et la génération
+> PDF des rapports se fait directement dans `views.py::report_pdf` via `xhtml2pdf`
+> (pas de module `reports.py` dédié) — voir [Stack technique](#stack-technique).
 
 ---
 
