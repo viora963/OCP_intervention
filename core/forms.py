@@ -88,7 +88,75 @@ class SparePartForm(forms.ModelForm):
         }
 
 
-class InterventionForm(forms.ModelForm):
+# Transitions de statut autorisées depuis le formulaire générique
+# (création/édition). Les boutons dédiés "Démarrer" / "Terminer" (vues
+# intervention_start / intervention_finish) appliquent des règles plus
+# strictes encore (une seule transition précise à la fois) ; celles-ci
+# couvrent le cas plus large de l'édition manuelle par l'agent (ex:
+# planifier une date, annuler), tout en empêchant de sauter des étapes
+# (ex: passer directement de « en attente » à « terminée », ce qui
+# laissait auparavant une intervention « terminée » sans date_debut,
+# sans avoir jamais été « en cours », faussant silencieusement le taux
+# d'achèvement et les statistiques).
+TRANSITIONS_STATUT_AUTORISEES = {
+    'en_attente': {'en_attente', 'planifiee', 'annulee'},
+    'planifiee': {'planifiee', 'en_cours', 'en_attente', 'annulee'},
+    'en_cours': {'en_cours', 'terminee', 'annulee'},
+    'terminee': {'terminee'},
+    'annulee': {'annulee', 'en_attente'},
+}
+
+
+class StatutTransitionMixin:
+    """Empêche de sauter des étapes du cycle de vie via le formulaire
+    générique. À la création, le statut est toujours forcé à
+    'en_attente' quel que soit ce qui est soumis : rien ne justifie de
+    créer une intervention déjà « en cours » ou « terminée »."""
+
+    def clean(self):
+        cleaned_data = super().clean()
+        nouveau_statut = cleaned_data.get('statut')
+        if nouveau_statut is None:
+            return cleaned_data
+
+        if self.instance.pk is None:
+            # Création : ignore silencieusement toute valeur soumise,
+            # le cycle de vie démarre toujours à 'en_attente'.
+            cleaned_data['statut'] = 'en_attente'
+            return cleaned_data
+
+        ancien_statut = self.instance.statut
+        autorises = TRANSITIONS_STATUT_AUTORISEES.get(ancien_statut, {ancien_statut})
+        if nouveau_statut != ancien_statut and nouveau_statut not in autorises:
+            self.add_error(
+                'statut',
+                f"Transition impossible : « {dict(Intervention.STATUT_CHOICES).get(ancien_statut, ancien_statut)} » "
+                f"→ « {dict(Intervention.STATUT_CHOICES).get(nouveau_statut, nouveau_statut)} ». "
+                "Utilisez les actions dédiées (Démarrer / Terminer) pour l'avancement normal."
+            )
+        return cleaned_data
+
+
+class InterventionForm(StatutTransitionMixin, forms.ModelForm):
+    # Déclaré explicitement (plutôt que laissé à Meta.widgets) : dans le
+    # contexte de l'admin Django, ModelAdmin.get_form() passe son propre
+    # formfield_callback (formfield_for_dbfield) à modelform_factory, qui
+    # ignore Meta.widgets pour les champs non déclarés sur la classe et
+    # transforme un DateTimeField en SplitDateTimeField (AdminSplitDateTime).
+    # Résultat : le widget datetime-local ici est silencieusement remplacé
+    # ET form.changed_data plante (SplitDateTimeField.has_changed() reçoit
+    # une valeur de champ non-liste). Un champ déclaré explicitement sur la
+    # classe est toujours prioritaire sur le formfield_callback, donc ceci
+    # fixe le rendu ET le crash dans les deux contextes (admin et vues
+    # applicatives) sans dupliquer la logique ailleurs.
+    date_planification = forms.DateTimeField(
+        required=False,
+        widget=forms.DateTimeInput(
+            attrs={'class': 'form-input', 'type': 'datetime-local'},
+            format='%Y-%m-%dT%H:%M'
+        ),
+    )
+
     class Meta:
         model = Intervention
         fields = ['titre', 'description', 'client', 'technicien', 'type_intervention',
@@ -102,10 +170,6 @@ class InterventionForm(forms.ModelForm):
             'type_intervention': forms.Select(attrs={'class': 'form-select'}),
             'priorite': forms.Select(attrs={'class': 'form-select'}),
             'statut': forms.Select(attrs={'class': 'form-select'}),
-            'date_planification': forms.DateTimeInput(
-                attrs={'class': 'form-input', 'type': 'datetime-local'},
-                format='%Y-%m-%dT%H:%M'
-            ),
             'duree_estimee': forms.NumberInput(attrs={'class': 'form-input'}),
             'localisation': forms.TextInput(attrs={'class': 'form-input'}),
             'latitude': forms.NumberInput(attrs={'class': 'form-input'}),
@@ -113,8 +177,18 @@ class InterventionForm(forms.ModelForm):
         }
 
 
-class InterventionTechnicianForm(forms.ModelForm):
+class InterventionTechnicianForm(StatutTransitionMixin, forms.ModelForm):
     """Formulaire restreint pour les techniciens (pas de modification client/technicien)."""
+    # Voir le commentaire équivalent dans InterventionForm ci-dessus — même
+    # raison (compat admin), même fix.
+    date_planification = forms.DateTimeField(
+        required=False,
+        widget=forms.DateTimeInput(
+            attrs={'class': 'form-input', 'type': 'datetime-local'},
+            format='%Y-%m-%dT%H:%M'
+        ),
+    )
+
     class Meta:
         model = Intervention
         fields = ['titre', 'description', 'type_intervention', 'priorite',
@@ -126,10 +200,6 @@ class InterventionTechnicianForm(forms.ModelForm):
             'type_intervention': forms.Select(attrs={'class': 'form-select'}),
             'priorite': forms.Select(attrs={'class': 'form-select'}),
             'statut': forms.Select(attrs={'class': 'form-select'}),
-            'date_planification': forms.DateTimeInput(
-                attrs={'class': 'form-input', 'type': 'datetime-local'},
-                format='%Y-%m-%dT%H:%M'
-            ),
             'duree_estimee': forms.NumberInput(attrs={'class': 'form-input'}),
             'localisation': forms.TextInput(attrs={'class': 'form-input'}),
             'latitude': forms.NumberInput(attrs={'class': 'form-input'}),

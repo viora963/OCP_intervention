@@ -109,8 +109,17 @@ function technicienScoring() {
             // Écoute directement les champs du formulaire Django rendus par
             // {{ field }} — ils ne sont pas dans ce composant Alpine, donc
             // on s'y accroche par ID plutôt que via x-model.
+            // 'input' et 'change' sont tous les deux écoutés : les <select>
+            // (type_intervention) ne déclenchent 'input' que sur les
+            // navigateurs récents (Safari < 16.4 ne l'émet pas du tout pour
+            // <select>), donc s'appuyer uniquement sur 'input' laisse le
+            // panneau de scoring "figé" sur ces navigateurs quand on change
+            // le type d'intervention. Le double listener ne pose pas de
+            // problème : onFieldChange() ne fait que relancer un debounce.
             [typeField, latField, lonField].forEach((el) => {
-                if (el) el.addEventListener('input', () => this.onFieldChange());
+                if (!el) return;
+                el.addEventListener('input', () => this.onFieldChange());
+                el.addEventListener('change', () => this.onFieldChange());
             });
 
             // Premier calcul immédiat (le type a une valeur par défaut).

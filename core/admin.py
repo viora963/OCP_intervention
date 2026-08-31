@@ -4,6 +4,7 @@ from .models import (
     InterventionPiece, Task, Report, Message,
     StockMovement, ActivityLog, Incident, ClientEvaluation
 )
+from .forms import InterventionForm
 
 
 @admin.register(Client)
@@ -46,6 +47,12 @@ class IncidentInline(admin.TabularInline):
 
 @admin.register(Intervention)
 class InterventionAdmin(admin.ModelAdmin):
+    # Réutilise le formulaire applicatif (au lieu du ModelForm par défaut
+    # de l'admin) : sans ça, /admin/ contourne entièrement les règles de
+    # transition de statut appliquées ailleurs dans l'app (StatutTransitionMixin,
+    # voir core/forms.py) — un compte "Agent bureau" a accès à /admin/ (is_staff),
+    # donc ce n'est pas qu'un risque théorique réservé aux superusers.
+    form = InterventionForm
     list_display = ['id', 'titre', 'client', 'technicien', 'type_intervention', 'priorite', 'statut', 'date_creation']
     list_filter = ['type_intervention', 'priorite', 'statut']
     search_fields = ['titre', 'description', 'client__nom']
