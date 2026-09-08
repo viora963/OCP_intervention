@@ -75,13 +75,19 @@ Ce dépôt est le résultat de ce travail, développé de façon itérative sur 
 |---|---|
 | Backend | Django (Python) |
 | Base de données | ORM Django (SQLite en développement) |
-| Frontend | Templates Django + Tailwind CSS (CDN) + Alpine.js |
+| Frontend | Templates Django + Tailwind CSS (build local via CLI) + Alpine.js |
 | Graphiques | Chart.js |
 | Génération PDF | xhtml2pdf |
-| Icônes | Phosphor Icons |
+| Icônes | Phosphor Icons (poids `regular`, chargé en CDN pinné) |
 | Authentification | Système Django natif (`django.contrib.auth`) |
 
-Aucun framework JS de build n'est utilisé — Tailwind et Alpine sont chargés en CDN, ce qui garde le projet simple à déployer pour un contexte de stage.
+Le CSS Tailwind est compilé localement via le Tailwind CLI (dossier `frontend/`, voir
+[Installation](#installation)) plutôt que chargé depuis `cdn.tailwindcss.com` (le
+Play CDN de Tailwind, explicitement déconseillé en production : compilation à la
+volée dans le navigateur, pas de purge des classes inutilisées). Le fichier généré
+`core/static/core/css/tailwind-built.css` est versionné dans le dépôt — il n'y a pas
+encore de pipeline CI qui le régénère automatiquement au déploiement, donc il doit
+rester à jour manuellement après toute modification de classes (`npm run build:css`).
 
 ---
 
@@ -153,9 +159,20 @@ python manage.py setup_roles
 # Compte administrateur
 python manage.py createsuperuser
 
+# Build du CSS (Tailwind) — nécessaire une première fois, et à chaque fois
+# qu'une classe Tailwind est ajoutée dans un template ou dans forms.py
+cd frontend
+npm install
+npm run build:css
+cd ..
+
 # Lancement
 python manage.py runserver
 ```
+
+Pendant le développement, `npm run watch:css` (depuis `frontend/`) recompile
+automatiquement le CSS à chaque modification de template — pratique pour éviter
+de relancer `build:css` manuellement à chaque changement.
 
 L'accès au portail client ou au tableau de bord technicien nécessite de lier un compte `User` existant à une fiche `Client` ou `Technician` via `/admin/` ou les formulaires dédiés (champ « Compte utilisateur »).
 
@@ -164,10 +181,16 @@ L'accès au portail client ou au tableau de bord technicien nécessite de lier u
 ## Structure du projet
 
 ```
+tailwind.config.js              # Config Tailwind — content scan : templates, JS, forms.py
+frontend/
+├── package.json                # Scripts npm run build:css / watch:css
+└── input.css                   # Source Tailwind (@tailwind base/components/utilities)
+
 core/
 ├── models.py                    # Modèles de données
 ├── views.py                     # Logique métier / vues
-├── forms.py                     # Formulaires Django
+├── forms.py                     # Formulaires Django (⚠️ contient des classes Tailwind
+│                                 #   dans les attrs des widgets — scanné par Tailwind, voir ci-dessus)
 ├── urls.py                      # Routes
 ├── permissions.py               # RBAC + règles object-level
 ├── services.py                  # StockService (gestion du stock)
@@ -182,7 +205,13 @@ core/
 │   └── seed_demo.py             # Jeu de données de démonstration
 ├── migrations/                  # Migrations Django
 ├── static/core/
-│   ├── css/                     # Thème visuel (Tailwind + surcharge custom)
+│   ├── css/
+│   │   ├── tailwind-built.css   # Généré — ne pas éditer à la main, voir Installation
+│   │   ├── custom.css           # Overrides ponctuels
+│   │   └── ocp-theme.css        # Classes composants (.btn-*, .form-*, .card, .badge...)
+│   │                             #   chargé AVANT tailwind-built.css dans les templates,
+│   │                             #   pour que les utilitaires Tailwind (pl-10, etc.)
+│   │                             #   puissent bien surcharger ces classes composants
 │   └── js/app.js                # Composants Alpine partagés
 └── templates/core/
     ├── base.html                    # Layout principal (interne)

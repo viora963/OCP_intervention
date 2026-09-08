@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python  // we use it for the operating system (linux/macOS) to understand that it should use python
 """Django's command-line utility for administrative tasks."""
 import os
 import sys
