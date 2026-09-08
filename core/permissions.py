@@ -35,10 +35,14 @@ touche qu'à SES interventions — est gérée par `user_can_access_intervention
 ci-dessous, indépendamment des Groups.
 """
 
+import logging
 from functools import wraps
 
 from django.contrib.auth.views import redirect_to_login
 from django.http import HttpResponseForbidden
+
+# Logger dédié sécurité — voir LOGGING dans settings.py (fichier logs/security.log)
+security_logger = logging.getLogger('security')
 
 
 # ───────────────────────────────────────────────
@@ -141,6 +145,11 @@ def perm_required(perm):
             if not request.user.is_authenticated:
                 return redirect_to_login(request.get_full_path())
             if not request.user.has_perm(perm):
+                security_logger.warning(
+                    "Accès refusé (403) : user=%s perm=%s path=%s ip=%s",
+                    request.user, perm, request.path,
+                    request.META.get('REMOTE_ADDR'),
+                )
                 return HttpResponseForbidden(
                     f"Accès refusé : cette action nécessite la permission « {perm} », "
                     f"qui n'est pas accordée à votre rôle."
