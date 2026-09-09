@@ -11,8 +11,16 @@ Voir .env.example fourni à côté de ce fichier.
 
 from pathlib import Path
 import os
+from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Charge les variables du fichier .env (s'il existe) dans os.environ AVANT
+# toute lecture de SECRET_KEY/DEBUG/ALLOWED_HOSTS ci-dessous. Sans cet
+# appel, python-dotenv est installé (requirements.txt) mais n'a aucun
+# effet : le .env est silencieusement ignoré et Django ne voit jamais
+# les valeurs qu'il contient (bug corrigé — voir historique de debug).
+load_dotenv(BASE_DIR / '.env')
 
 # ───────────────────────────────────────────────
 # Cœur sécurité : SECRET_KEY / DEBUG / ALLOWED_HOSTS

@@ -194,6 +194,7 @@ def dashboard_technician(request):
     }
     return render(request, 'core/technician_dashboard.html', context)
 
+
 # ───────────────────────────────────────────────
 # Suivi en temps réel
 # ───────────────────────────────────────────────
