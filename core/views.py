@@ -196,53 +196,11 @@ def dashboard_technician(request):
 
 
 @login_required
-def technician_update_position(request):
-    """Reçoit la position GPS poussée périodiquement par le navigateur du
-    technicien connecté (voir JS `geoTracker` sur technician_dashboard.html).
-
-    Scopé volontairement à SOI-MÊME : pas de <pk> dans l'URL — le
-    technicien ne peut mettre à jour que sa propre position, jamais celle
-    d'un autre (même en trafiquant la requête), puisqu'on résout le
-    profil depuis request.user et pas depuis un paramètre.
-    """
-    if request.method != 'POST':
-        return HttpResponseForbidden("Méthode non autorisée.")
-
-    tech = get_technician_profile(request.user)
-    if tech is None:
-        return HttpResponseForbidden("Aucun profil technicien lié à ce compte.")
-
-    def _to_float(val):
-        try:
-            return float(val)
-        except (TypeError, ValueError):
-            return None
-
-    latitude = _to_float(request.POST.get('latitude'))
-    longitude = _to_float(request.POST.get('longitude'))
-
-    if latitude is None or longitude is None:
-        return JsonResponse({'ok': False, 'error': 'latitude/longitude invalides.'}, status=400)
-    if not (-90 <= latitude <= 90) or not (-180 <= longitude <= 180):
-        return JsonResponse({'ok': False, 'error': 'latitude/longitude hors limites.'}, status=400)
-
-    tech.latitude = latitude
-    tech.longitude = longitude
-    tech.derniere_position_maj = timezone.now()
-    tech.save(update_fields=['latitude', 'longitude', 'derniere_position_maj'])
-
-    return JsonResponse({
-        'ok': True,
-        'derniere_position_maj': tech.derniere_position_maj.strftime('%d/%m/%Y %H:%M:%S'),
-    })
-
-
-@login_required
 def technician_toggle_availability(request):
     """Permet au technicien connecté de basculer sa propre disponibilité
     (Disponible / Indisponible) depuis son tableau de bord.
 
-    Scopé volontairement à SOI-MÊME comme technician_update_position :
+    Scopé volontairement à SOI-MÊME :
     pas de <pk> dans l'URL, le profil est résolu depuis request.user.
     """
     if request.method != 'POST':
@@ -316,16 +274,6 @@ def suivi_temps_reel_data(request):
             'disponible': t.disponible,
             'localisation': t.localisation,
             'charge': t.charge_actuelle(),
-            'latitude': t.latitude,
-            'longitude': t.longitude,
-            'derniere_position_maj': (
-                t.derniere_position_maj.strftime('%d/%m %H:%M:%S')
-                if t.derniere_position_maj else None
-            ),
-            'position_recente': (
-                t.derniere_position_maj is not None
-                and (now - t.derniere_position_maj).total_seconds() < 300
-            ),
         })
 
     incidents_qs = Incident.objects.filter(resolu=False).select_related('intervention').order_by('-date_signalement')[:20]

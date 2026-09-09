@@ -29,28 +29,6 @@
         <p class="text-slate-500">Votre compte n'est pas lié à un profil technicien.</p>
     </div>
     {% else %}
-    <div x-data="geoTracker('{% url 'technician_update_position' %}')" class="card mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}" x-ref="csrfInput">
-        <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"
-                 :class="active ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-400'">
-                <i class="ph ph-map-pin-line"></i>
-            </div>
-            <div>
-                <div class="font-medium text-slate-900 text-sm">Partage de ma position</div>
-                <p class="text-xs text-slate-500" x-show="status === 'idle'">Désactivé — le superviseur ne voit pas votre position en direct.</p>
-                <p class="text-xs text-emerald-600" x-show="status === 'tracking'">
-                    Actif<span x-show="lastSync"> — dernière position envoyée à <span x-text="lastSync"></span></span>
-                </p>
-                <p class="text-xs text-red-600" x-show="status === 'error'" x-text="errorMessage"></p>
-            </div>
-        </div>
-        <button type="button" @click="toggle()" class="btn btn-sm shrink-0" :class="active ? 'btn-secondary' : 'btn-primary'">
-            <i class="ph" :class="active ? 'ph-pause' : 'ph-play'"></i>
-            <span x-text="active ? 'Arrêter' : 'Activer'"></span>
-        </button>
-    </div>
-
     <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
         <div class="card card-hover border-l-4 border-ocp-500 p-5">
             <div class="flex items-center justify-between mb-2">

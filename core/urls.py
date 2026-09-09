@@ -9,7 +9,6 @@ urlpatterns = [
     # Suivi en temps réel
     path('suivi/', views.suivi_temps_reel, name='suivi_temps_reel'),
     path('suivi/data/', views.suivi_temps_reel_data, name='suivi_temps_reel_data'),
-    path('techniciens/position/', views.technician_update_position, name='technician_update_position'),
     path('techniciens/disponibilite/', views.technician_toggle_availability, name='technician_toggle_availability'),
 
     # Clients
