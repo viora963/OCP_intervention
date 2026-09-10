@@ -2,7 +2,7 @@
 
 <div align="center">
 
-<h1 align="center">Intervia — Gestion des Interventions OCP Khouribga</h1>
+<h1 align="center">OCP_Intervention — Gestion des Interventions de Maintenance</h1>
 
 </div>
 
@@ -19,7 +19,7 @@
   <a href="https://nasa-ammos.github.io/slim/"><img alt="SLIM" src="https://img.shields.io/badge/Bonnes%20pratiques%20issues%20de-SLIM-blue"></a>
 </p>
 
-Intervia a été développé dans le cadre d'un stage d'ingénierie logicielle au sein du service informatique du Groupe OCP, site de Khouribga, pour répondre à un besoin opérationnel concret : les agents bureau, les techniciens et les clients devaient coordonner les interventions de maintenance avec trop peu de visibilité sur le travail des autres. L'application donne à chacun une vue dédiée — les agents bureau planifient et assignent, les techniciens travaillent à partir d'une file d'attente en direct de ce qui leur est propre, et les clients peuvent suivre l'avancement de leur propre demande et évaluer le travail une fois terminé — tandis qu'un moteur de règles métier gère les recommandations de techniciens et la détection d'anomalies dans les rapports, sans recourir à un modèle entraîné.
+OCP_Intervention a été développé dans le cadre d'un stage d'ingénierie logicielle au sein du service informatique du Groupe OCP, site de Khouribga, pour répondre à un besoin opérationnel concret : les agents bureau, les techniciens et les clients devaient coordonner les interventions de maintenance avec trop peu de visibilité sur le travail des autres. L'application donne à chacun une vue dédiée — les agents bureau planifient et assignent, les techniciens travaillent à partir d'une file d'attente en direct de ce qui leur est propre, et les clients peuvent suivre l'avancement de leur propre demande et évaluer le travail une fois terminé — tandis qu'un moteur de règles métier gère les recommandations de techniciens et la détection d'anomalies dans les rapports, sans recourir à un modèle entraîné.
 
 ---
 
