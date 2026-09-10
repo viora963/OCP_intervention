@@ -1,252 +1,151 @@
-# OCP Khouribga — Gestion des Interventions
+<hr>
 
-Application web de gestion des interventions de maintenance, développée dans le cadre d'un stage au sein du service informatique du **Groupe OCP, site de Khouribga**.
+<div align="center">
 
-L'application couvre l'ensemble du cycle de vie d'une intervention de maintenance : réception de la demande, planification, assignation intelligente d'un technicien, suivi en temps réel, gestion du stock de pièces détachées, rapport automatisé et retour du client.
+<h1 align="center">Intervia — Gestion des Interventions OCP Khouribga</h1>
 
----
+</div>
 
-## Sommaire
+<pre align="center">Une plateforme Django qui gère l'ensemble du cycle de vie d'une intervention de maintenance pour OCP Khouribga — de la demande à l'assignation intelligente d'un technicien, en passant par le suivi en temps réel, la gestion du stock, la génération de rapports et le retour client.</pre>
 
-- [Contexte du stage](#contexte-du-stage)
-- [Fonctionnalités](#fonctionnalités)
-- [Stack technique](#stack-technique)
-- [Rôles et permissions](#rôles-et-permissions)
-- [Modèle de données](#modèle-de-données)
-- [Décisions d'architecture](#décisions-darchitecture)
-- [Installation](#installation)
-- [Structure du projet](#structure-du-projet)
-- [Roadmap / pistes d'évolution](#roadmap--pistes-dévolution)
+<p align="center">
+  <img alt="Python" src="https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white">
+  <img alt="Django" src="https://img.shields.io/badge/Django-4.2-092E20?logo=django&logoColor=white">
+  <img alt="Tailwind CSS" src="https://img.shields.io/badge/Tailwind_CSS-3.4-38B2AC?logo=tailwindcss&logoColor=white">
+  <img alt="Alpine.js" src="https://img.shields.io/badge/Alpine.js-UI-8BC0D0?logo=alpinedotjs&logoColor=black">
+  <img alt="Chart.js" src="https://img.shields.io/badge/Chart.js-Graphiques-FF6384?logo=chartdotjs&logoColor=white">
+  <img alt="xhtml2pdf" src="https://img.shields.io/badge/xhtml2pdf-Export_PDF-D14836?logo=adobeacrobatreader&logoColor=white">
+  <img alt="Statut" src="https://img.shields.io/badge/statut-projet_de_stage-lightgrey">
+  <a href="https://nasa-ammos.github.io/slim/"><img alt="SLIM" src="https://img.shields.io/badge/Bonnes%20pratiques%20issues%20de-SLIM-blue"></a>
+</p>
 
----
-
-## Contexte du stage
-
-Le sujet de stage demandait la mise en place d'un système permettant :
-
-- la gestion complète des interventions de maintenance (planification, assignation, suivi) ;
-- la gestion du stock de pièces détachées ;
-- un suivi en temps réel de l'état d'avancement des interventions, de la disponibilité des techniciens et des incidents rencontrés sur le terrain ;
-- la génération de rapports détaillés ;
-- une communication fluide entre les équipes internes et les clients.
-
-Ce dépôt est le résultat de ce travail, développé de façon itérative sur un projet Django unique (app `core`).
+Intervia a été développé dans le cadre d'un stage d'ingénierie logicielle au sein du service informatique du Groupe OCP, site de Khouribga, pour répondre à un besoin opérationnel concret : les agents bureau, les techniciens et les clients devaient coordonner les interventions de maintenance avec trop peu de visibilité sur le travail des autres. L'application donne à chacun une vue dédiée — les agents bureau planifient et assignent, les techniciens travaillent à partir d'une file d'attente en direct de ce qui leur est propre, et les clients peuvent suivre l'avancement de leur propre demande et évaluer le travail une fois terminé — tandis qu'un moteur de règles métier gère les recommandations de techniciens et la détection d'anomalies dans les rapports, sans recourir à un modèle entraîné.
 
 ---
 
 ## Fonctionnalités
 
-### Gestion opérationnelle
-- **Interventions** : création, édition, cycle de statuts (`en_attente` → `planifiee` → `en_cours` → `terminee`/`annulee`), démarrage/fin en un clic pour le technicien assigné.
-- **Clients & techniciens** : fiches, référentiels, historique des interventions.
-- **Stock de pièces détachées** : consommation liée à une intervention, mouvements d'entrée/sortie tracés, alertes de seuil bas.
-- **Tâches** : sous-tâches par intervention, avec cycle de statut en un clic.
-- **Incidents terrain** : signalement, gravité, résolution — répond explicitement au volet « incidents rencontrés » du sujet de stage.
-- **Rapports** : génération semi-automatique (résumé et détection d'anomalies par règles métier, sans machine learning), export PDF.
+* **Interventions** avec un cycle de statut clair (en attente → planifiée → en cours → terminée/annulée) et démarrage/fin en un clic pour le technicien assigné
+* **Assignation intelligente de technicien** — un moteur de scoring combinant disponibilité, spécialité, charge de travail actuelle et proximité géographique, calculé en direct avant même l'enregistrement de l'intervention
+* **Gestion du stock de pièces détachées** — chaque mouvement tracé via une couche de service unique, avec alertes de seuil bas
+* **Page de suivi en temps réel** — compteurs et statuts en direct par polling (pas de WebSockets)
+* **Deux tableaux de bord** — un opérationnel pour les agents bureau/managers, un personnel pour les techniciens de terrain
+* **Portail client** — strictement limité aux interventions du client concerné, avec messagerie intégrée et évaluations post-intervention qui alimentent en retour le scoring des techniciens
+* **Export PDF des rapports** et détection d'anomalies par règles métier (explicitement sans machine learning)
+* **RBAC** via les Groupes/Permissions Django, complété par des règles d'accès *object-level*, et protection contre les attaques par force brute sur la connexion
 
-### Assignation intelligente
-- Moteur de **scoring des techniciens** (`recommander_technicien`) combinant disponibilité, spécialités, charge de travail actuelle et proximité géographique.
-- Scoring affiché en direct (AJAX) **dès la création** de l'intervention, avant même son enregistrement en base — panneau latéral avec assignation en un clic.
-- Recommandations également disponibles sur la fiche de détail pour réassignation.
+## Sommaire
 
-### Suivi en temps réel
-- Page dédiée (`/suivi/`) avec compteurs live, liste des interventions actives, techniciens et incidents non résolus — rafraîchie par polling (pas de WebSockets).
-- Résumé compact du suivi intégré au tableau de bord principal.
+* [Démarrage rapide](#démarrage-rapide)
+* [Rôles et permissions](#rôles-et-permissions)
+* [Notes d'architecture](#notes-darchitecture)
+* [Questions fréquentes (FAQ)](#questions-fréquentes-faq)
+* [Contribuer](#contribuer)
+* [Licence](#licence)
+* [Support](#support)
 
-### Tableau de bord
-- Vue opérationnelle globale (agents bureau/managers) : KPI, jauge de taux de complétion, répartition des statuts, alertes stock, incidents non résolus, dernières interventions.
-- Vue personnelle pour les techniciens de terrain (leurs interventions actives, prochaine intervention planifiée).
+## Démarrage rapide
 
-### Portail client
-- Espace dédié, strictement cantonné aux données du client concerné : ses interventions, leur avancement, le rapport une fois disponible.
-- **Messagerie** intégrée à chaque intervention entre le client et l'équipe.
-- **Évaluation client** une fois l'intervention terminée : note de l'intervention (/5) et note du technicien (/100), avec commentaire libre. La note technicien alimente automatiquement la moyenne utilisée par le moteur de scoring — la satisfaction client boucle ainsi dans les futures assignations.
+### Prérequis
 
-### Sécurité et contrôle d'accès
-- RBAC basé sur les `Group`/`Permission` natifs de Django (voir [Rôles et permissions](#rôles-et-permissions)), synchronisé par une commande de gestion (`setup_roles`) exécutée automatiquement après chaque migration.
-- Règles *object-level* complémentaires (un technicien n'accède qu'à ses propres interventions, un client qu'aux siennes) — non exprimables par un système de permissions par modèle seul.
-- Recherche globale et listes internes explicitement fermées aux comptes du portail client.
+* Python 3.10+
+* Node.js + npm (pour la compilation du CSS Tailwind)
+* pip / un outil d'environnement virtuel
 
----
+### Installation
 
-## Stack technique
+1. Cloner le dépôt et s'y placer :
+   ```bash
+   git clone <url-du-depot>
+   cd <nom-du-projet>
+   ```
+2. Créer et activer un environnement virtuel :
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # Windows : venv\Scripts\activate
+   ```
+3. Installer les dépendances Python :
+   ```bash
+   pip install -r requirements.txt
+   ```
+4. Copier `env.example` vers `.env` et définir `SECRET_KEY`, `DEBUG` et `ALLOWED_HOSTS`.
+5. Appliquer les migrations et provisionner les rôles :
+   ```bash
+   python manage.py migrate
+   python manage.py setup_roles
+   ```
+6. Créer un compte administrateur :
+   ```bash
+   python manage.py createsuperuser
+   ```
+7. Compiler le CSS Tailwind une première fois (et à chaque nouvelle classe Tailwind) :
+   ```bash
+   cd frontend
+   npm install
+   npm run build:css
+   cd ..
+   ```
 
-| Domaine | Choix |
-|---|---|
-| Backend | Django (Python) |
-| Base de données | ORM Django (SQLite en développement) |
-| Frontend | Templates Django + Tailwind CSS (build local via CLI) + Alpine.js |
-| Graphiques | Chart.js |
-| Génération PDF | xhtml2pdf |
-| Icônes | Phosphor Icons (poids `regular`, chargé en CDN pinné) |
-| Authentification | Système Django natif (`django.contrib.auth`) |
+### Lancement
 
-Le CSS Tailwind est compilé localement via le Tailwind CLI (dossier `frontend/`, voir
-[Installation](#installation)) plutôt que chargé depuis `cdn.tailwindcss.com` (le
-Play CDN de Tailwind, explicitement déconseillé en production : compilation à la
-volée dans le navigateur, pas de purge des classes inutilisées). Le fichier généré
-`core/static/core/css/tailwind-built.css` est versionné dans le dépôt — il n'y a pas
-encore de pipeline CI qui le régénère automatiquement au déploiement, donc il doit
-rester à jour manuellement après toute modification de classes (`npm run build:css`).
+1. Démarrer le serveur de développement :
+   ```bash
+   python manage.py runserver
+   ```
+2. Se rendre sur `http://127.0.0.1:8000/` et se connecter avec le compte superuser, ou avec un compte `Client`/`Technician` lié à un `User` via `/admin/`.
 
----
+### Exemples d'utilisation
+
+* **Créer une intervention en tant qu'agent bureau** — le panneau de recommandation de technicien apparaît en direct dès la saisie du type, de la priorité et de la localisation, avant même l'enregistrement.
+* **Travailler en tant que technicien** — le tableau de bord personnel n'affiche que les interventions assignées ; une tâche se fait avancer dans son cycle de statut en un clic, et un incident terrain peut être signalé directement en cas de problème sur site.
+* **Tout suivre en direct** — la page `/suivi/` offre un tableau de bord par polling des interventions actives, de la disponibilité des techniciens et des incidents non résolus.
+* **En tant que client** — le portail client permet de suivre l'avancement de son intervention, d'échanger avec l'équipe par messagerie, et de noter le technicien une fois le travail terminé.
+
+### Build
+
+En développement, `npm run watch:css` (depuis `frontend/`) recompile automatiquement le CSS à chaque modification de template. Il n'existe pas encore de pipeline CI qui régénère `tailwind-built.css` au déploiement — un `npm run build:css` manuel est donc nécessaire après toute modification de classes avant mise en production.
+
+### Tests
+
+Aucune suite de tests automatisés n'existe pour l'instant (voir [Notes d'architecture](#notes-darchitecture) ci-dessous). La vérification se fait manuellement en parcourant les flux de chaque rôle (agent bureau, technicien, manager, client) sur un jeu de données de démonstration :
+```bash
+python manage.py seed_demo
+```
 
 ## Rôles et permissions
 
 | Rôle | Portée |
 |---|---|
-| **Agent bureau** | Gestion complète : clients, techniciens, interventions, stock, rapports, statistiques, journal d'activité. Point d'entrée principal pour la création d'interventions. |
-| **Technicien** | Lecture des référentiels partagés ; création/modification de rapports, tâches, incidents et messages, restreint à ses propres interventions assignées. |
-| **Manager** | Lecture seule sur l'ensemble du périmètre (supervision) — aucune permission d'écriture. |
-| **Client (portail)** | Accès strictement limité à ses propres interventions, à la messagerie associée et à l'évaluation post-intervention. Aucune visibilité sur les référentiels internes. |
+| **Agent bureau** | Gestion complète : clients, techniciens, interventions, stock, rapports, statistiques, journal d'activité |
+| **Technicien** | Lecture des référentiels partagés ; écriture restreinte à ses propres interventions assignées |
+| **Manager** | Lecture seule sur l'ensemble du système (supervision) |
+| **Client (portail)** | Ses propres interventions uniquement, plus la messagerie associée et l'évaluation post-intervention |
 
-Les rôles sont définis de façon déclarative dans `core/permissions.py::ROLE_PERMISSIONS` et provisionnés via `python manage.py setup_roles`. Ajouter un rôle ne nécessite de modifier aucune vue existante.
+## Notes d'architecture
 
----
+* `StockService` est la source unique de vérité pour les quantités de stock — jamais de modification directe via un formulaire.
+* Le scoring des techniciens et la détection d'anomalies dans les rapports reposent sur des règles métier explicites et pondérées, pas sur du machine learning (les champs nommés `ai_*` sont conservés uniquement pour compatibilité).
+* Le suivi en temps réel utilise le polling (rafraîchissement toutes les 8 secondes) plutôt que les WebSockets, pour privilégier la simplicité de déploiement.
+* Les vérifications d'accès *object-level* sont centralisées dans `core/permissions.py` plutôt que dupliquées dans chaque vue.
+* **Reste à faire** : tests automatisés (priorité : `StockService` et le moteur de scoring), notifications push, historique complet des évaluations clients sur la fiche technicien, export des statistiques en PDF/Excel.
 
-## Modèle de données
+## Questions fréquentes (FAQ)
 
-Modèles principaux (`core/models.py`) :
+1. **Pourquoi pas de machine learning pour l'assignation des techniciens ?**
+   - Le besoin exigeait des décisions explicables et auditables sur un jeu de données restreint — un moteur de règles pondérées (`utils.py`) répond à cela sans la lourdeur ni l'opacité d'un modèle entraîné.
+2. **Pourquoi le polling plutôt que les WebSockets pour le suivi en temps réel ?**
+   - Plus simple à déployer et à maintenir à l'échelle de ce projet ; un rafraîchissement toutes les 8 secondes suffisait au besoin opérationnel.
+3. **Un technicien peut-il voir les interventions d'un autre technicien ?**
+   - Non — les vérifications de permission *object-level* dans `core/permissions.py` restreignent chaque technicien à ses propres interventions assignées.
 
-- **Client** — fiche client, avec lien optionnel vers un compte utilisateur (active le portail).
-- **Technician** — fiche technicien, avec lien optionnel vers un compte utilisateur, localisation, note moyenne (alimentée par les évaluations clients).
-- **Intervention** — cœur du système : type, priorité, statut, dates, localisation, technicien assigné.
-- **InterventionPiece** — pièces consommées sur une intervention (table de liaison).
-- **Task** — sous-tâches d'une intervention.
-- **SparePart** / **StockMovement** — référentiel de pièces détachées et historique des mouvements de stock (toute modification de quantité passe par `StockService`, jamais en écriture directe).
-- **Report** — rapport d'intervention (contenu, observations, recommandations, résumé et anomalies générés par règles métier).
-- **Incident** — incident terrain rattaché à une intervention, avec gravité et statut de résolution.
-- **Message** — messagerie liée à une intervention (interne et client).
-- **ClientEvaluation** — évaluation du client une fois l'intervention terminée (note intervention /5, note technicien /100, commentaire).
-- **ActivityLog** — journal d'activité (traçabilité des actions utilisateurs).
+## Contribuer
 
----
+Ce projet est un travail académique de fin de stage (Génie Informatique, ENSA Khouribga) réalisé pour le site de Khouribga du Groupe OCP. Il n'est pas conçu comme un projet open-source public avec un processus de contribution externe, mais les retours des encadrants et évaluateurs sont les bienvenus — n'hésitez pas à ouvrir une issue ou à contacter directement le porteur du projet.
 
-## Décisions d'architecture
+## Licence
 
-Quelques choix documentés directement dans le code, résumés ici :
+Ce projet a été développé à des fins académiques et d'évaluation interne dans le cadre d'un stage au sein du Groupe OCP. Aucune licence open-source n'est actuellement associée ; merci de contacter le porteur du projet avant toute réutilisation ou redistribution.
 
-- **`StockService` comme source unique de vérité** : `SparePart.quantite_stock` n'est jamais modifiable par un formulaire direct — tout passe par `StockService.adjust()`, avec un `StockMovement` créé à chaque changement pour garder un historique auditable.
-- **Pas de machine learning** : le scoring des techniciens et l'analyse de description reposent sur des règles métier explicites et pondérées (`utils.py`), pas sur un modèle entraîné — choix assumé et documenté dans le code (les champs nommés `ai_*` sont conservés pour compatibilité mais jamais présentés comme de l'IA à l'utilisateur).
-- **Suivi temps réel par polling, pas WebSockets** : simplicité de déploiement privilégiée pour un projet de stage ; rafraîchissement toutes les 8 secondes sur la page dédiée.
-- **Séparation `Report` / `ClientEvaluation`** : le rapport est un document interne rédigé par l'équipe, l'évaluation est un retour du client — deux modèles distincts pour ne jamais exposer un champ interne à une écriture cliente.
-- **Portail client isolé** : vues et permissions dédiées (`client_portal_*`), plutôt que des branches conditionnelles dans les vues internes — évite qu'un champ ajouté côté interne ne se retrouve exposé au client par erreur.
-- **Vérifications d'accès *object-level*** : centralisées dans `core/permissions.py` (`user_can_access_intervention`, `user_can_edit_intervention`, `user_can_message_intervention`) plutôt que dupliquées dans chaque vue.
+## Support
 
----
-
-## Installation
-
-```bash
-# Cloner le dépôt et se placer dedans
-git clone <url-du-depot>
-cd <nom-du-projet>
-
-# Environnement virtuel
-python -m venv venv
-source venv/bin/activate  # Windows : venv\Scripts\activate
-
-# Dépendances
-pip install django xhtml2pdf
-
-# Base de données
-python manage.py migrate
-
-# Rôles (Groups/Permissions) — normalement automatique après migrate,
-# à relancer manuellement si besoin :
-python manage.py setup_roles
-
-# Compte administrateur
-python manage.py createsuperuser
-
-# Build du CSS (Tailwind) — nécessaire une première fois, et à chaque fois
-# qu'une classe Tailwind est ajoutée dans un template ou dans forms.py
-cd frontend
-npm install
-npm run build:css
-cd ..
-
-# Lancement
-python manage.py runserver
-```
-
-Pendant le développement, `npm run watch:css` (depuis `frontend/`) recompile
-automatiquement le CSS à chaque modification de template — pratique pour éviter
-de relancer `build:css` manuellement à chaque changement.
-
-L'accès au portail client ou au tableau de bord technicien nécessite de lier un compte `User` existant à une fiche `Client` ou `Technician` via `/admin/` ou les formulaires dédiés (champ « Compte utilisateur »).
-
----
-
-## Structure du projet
-
-```
-tailwind.config.js              # Config Tailwind — content scan : templates, JS, forms.py
-frontend/
-├── package.json                # Scripts npm run build:css / watch:css
-└── input.css                   # Source Tailwind (@tailwind base/components/utilities)
-
-core/
-├── models.py                    # Modèles de données
-├── views.py                     # Logique métier / vues
-├── forms.py                     # Formulaires Django (⚠️ contient des classes Tailwind
-│                                 #   dans les attrs des widgets — scanné par Tailwind, voir ci-dessus)
-├── urls.py                      # Routes
-├── permissions.py               # RBAC + règles object-level
-├── services.py                  # StockService (gestion du stock)
-├── utils.py                     # Scoring technicien, analyse de description, notifications
-│                                 #   (moteurs de règles explicites, sans machine learning —
-│                                 #   voir "Décisions d'architecture")
-├── context_processors.py        # Expose le rôle de l'utilisateur à tous les templates
-├── admin.py                     # Interface d'administration Django
-├── apps.py                      # Config de l'app ; synchronise les rôles après chaque migrate
-├── management/commands/
-│   ├── setup_roles.py           # Provisionne les Group/Permission (RBAC)
-│   └── seed_demo.py             # Jeu de données de démonstration
-├── migrations/                  # Migrations Django
-├── static/core/
-│   ├── css/
-│   │   ├── tailwind-built.css   # Généré — ne pas éditer à la main, voir Installation
-│   │   ├── custom.css           # Overrides ponctuels
-│   │   └── ocp-theme.css        # Classes composants (.btn-*, .form-*, .card, .badge...)
-│   │                             #   chargé AVANT tailwind-built.css dans les templates,
-│   │                             #   pour que les utilitaires Tailwind (pl-10, etc.)
-│   │                             #   puissent bien surcharger ces classes composants
-│   └── js/app.js                # Composants Alpine partagés
-└── templates/core/
-    ├── base.html                    # Layout principal (interne)
-    ├── base_public.html             # Layout public (login)
-    ├── _sidebar.html                 # Navigation latérale
-    ├── login.html                    # Connexion
-    ├── dashboard.html                 # Tableau de bord staff (agent bureau / manager)
-    ├── technician_dashboard.html       # Tableau de bord technicien
-    ├── suivi_temps_reel.html            # Suivi en temps réel (polling)
-    ├── statistics.html                   # Statistiques détaillées
-    ├── search_results.html                # Recherche globale
-    ├── activity_log.html                   # Journal d'activité
-    ├── client_*.html                        # CRUD clients
-    ├── technician_*.html                     # CRUD techniciens
-    ├── intervention_*.html                    # CRUD + détail interventions
-    ├── sparepart_*.html                        # CRUD pièces détachées
-    ├── stock_movement_*.html                    # Mouvements de stock
-    ├── report_*.html                             # Rapports (dont report_pdf.html pour l'export)
-    └── client_portal_*.html                       # Portail client (dashboard + détail intervention)
-```
-
-> ⚠️ Le scoring technicien et l'analyse de description (voir plus bas) vivent tous les
-> deux dans `utils.py`. Il n'y a pas de module `ai_utils.py` séparé, et la génération
-> PDF des rapports se fait directement dans `views.py::report_pdf` via `xhtml2pdf`
-> (pas de module `reports.py` dédié) — voir [Stack technique](#stack-technique).
-
----
-
-## Roadmap / pistes d'évolution
-
-- Notifications push (au-delà des notifications internes actuelles).
-- Historique des évaluations clients sur la fiche technicien (au-delà de la moyenne actuelle).
-- Export des statistiques en PDF/Excel.
-- Tests automatisés (unitaires sur `StockService` et le moteur de scoring en priorité).
-
----
-
-*Projet développé dans le cadre d'un stage — Génie Informatique , ENSA Khouribga.*
+Pour toute question sur ce projet, merci de contacter directement le porteur du projet.
