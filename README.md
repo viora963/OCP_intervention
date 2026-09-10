@@ -149,3 +149,7 @@ Ce projet a été développé à des fins académiques et d'évaluation interne 
 ## Support
 
 Pour toute question sur ce projet, merci de contacter directement le porteur du projet.
+
+---
+
+<p align="center"><em>Développé par <strong>Basma Cherguaoui</strong> — Génie Informatique, ENSA Khouribga.</em></p>
